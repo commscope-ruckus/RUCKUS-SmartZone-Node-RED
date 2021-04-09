@@ -1,1 +1,303 @@
-[{"id":"7fa9ac22.a4d204","type":"inject","z":"e754637a.afc6f","name":"","topic":"","payload":"","payloadType":"date","repeat":"","crontab":"","once":true,"onceDelay":"1","x":130,"y":120,"wires":[["b4819be0.62dbf8"]]},{"id":"3b23bb42.90b924","type":"http request","z":"e754637a.afc6f","name":"","method":"POST","ret":"obj","paytoqs":false,"url":"","tls":"4ddf0b78.96d664","persist":false,"proxy":"","authType":"","x":630,"y":120,"wires":[["7b40c3ea.4a089c"]]},{"id":"b4819be0.62dbf8","type":"function","z":"e754637a.afc6f","name":"get service ticket","func":"// global variables and values\n\nglobal.set(\"szAddress\", \"https://10.0.0.32:8443\");\n\nvar szAddress = global.get(\"szAddress\");\n\n//API call to get service token\nmsg.url = szAddress.concat(\"/wsg/api/public/v8_1/serviceTicket\");\n//node.warn(msg.url);\n\nmsg.headers = {\n    'content-type':'text/plain',     \n    'Cookie': 'JSESSIONID=nDwPdk0IUbCKkhZRzHf2e4Sksie9wMZE'}\n\nmsg.payload = {\n    \"username\":\"admin\",\n    \"password\":\"ruckus123!\"}\n\nreturn msg;","outputs":1,"noerr":0,"x":390,"y":120,"wires":[["3b23bb42.90b924"]]},{"id":"7b40c3ea.4a089c","type":"function","z":"e754637a.afc6f","name":"save service ticket","func":"var response = msg.payload;\n\nglobal.set(\"serviceTicket\", response.serviceTicket);\nglobal.set(\"controllerVersion\", response.controllerVersion);\n//node.warn(response.serviceTicket)\nreturn msg;","outputs":1,"noerr":0,"x":870,"y":120,"wires":[["c6a917d4.8474d8"]]},{"id":"c6a917d4.8474d8","type":"debug","z":"e754637a.afc6f","name":"","active":false,"tosidebar":true,"console":false,"tostatus":true,"complete":"payload","targetType":"msg","x":1110,"y":120,"wires":[]},{"id":"9a5a3839.86df58","type":"inject","z":"e754637a.afc6f","name":"","topic":"","payload":"","payloadType":"date","repeat":"","crontab":"","once":true,"onceDelay":"4","x":130,"y":240,"wires":[["7656c9f3.85ca58"]]},{"id":"7656c9f3.85ca58","type":"function","z":"e754637a.afc6f","name":"get AP configuration","func":"var szAddress = global.get(\"szAddress\");\nvar serviceTicket = global.get(\"serviceTicket\")\nvar apMAC = global.get(\"apMac\")\n\n//API call to get service token\nvar url = szAddress + \"/wsg/api/public/v9_0/aps/\" + apMAC + \"?serviceTicket=\" + serviceTicket\nmsg.url = url;\n//node.warn(msg.url);\n\nmsg.headers = {\n    'content-type':'text/plain',     \n    'Cookie': 'JSESSIONID=nDwPdk0IUbCKkhZRzHf2e4Sksie9wMZE'}\n\nreturn msg;\n\n\n//wsg/api/public/v9_0/aps?serviceTicket={{serviceTicket}}","outputs":1,"noerr":0,"x":400,"y":240,"wires":[["b5c5a6b3.dc7d18"]]},{"id":"b5c5a6b3.dc7d18","type":"http request","z":"e754637a.afc6f","name":"","method":"GET","ret":"obj","paytoqs":false,"url":"","tls":"4baf255d.26cd0c","persist":false,"proxy":"","authType":"","x":630,"y":240,"wires":[["b1ae22e4.c8aa6"]]},{"id":"b1ae22e4.c8aa6","type":"function","z":"e754637a.afc6f","name":"get gps coordinates","func":"global.set(\"latitude\", msg.payload.latitude);\nglobal.set(\"longitude\", msg.payload.longitude);\n\n//node.warn(msg.payload);\nreturn msg;","outputs":1,"noerr":0,"x":880,"y":240,"wires":[["54275ca1.458e74"]]},{"id":"54275ca1.458e74","type":"debug","z":"e754637a.afc6f","name":"","active":false,"tosidebar":true,"console":false,"tostatus":true,"complete":"payload","targetType":"msg","x":1110,"y":240,"wires":[]},{"id":"2cb45aac.f4c696","type":"inject","z":"e754637a.afc6f","name":"","topic":"","payload":"","payloadType":"date","repeat":"","crontab":"","once":true,"onceDelay":"3","x":130,"y":180,"wires":[["ec3e7901.ffb538"]]},{"id":"ec3e7901.ffb538","type":"function","z":"e754637a.afc6f","name":"get APs","func":"var szAddress = global.get(\"szAddress\");\nvar serviceTicket = global.get(\"serviceTicket\")\n\n//API call to get service token\nvar url = szAddress + \"/wsg/api/public/v9_0/aps?serviceTicket=\" + serviceTicket\nmsg.url = url\n//node.warn(msg.url);\n\nmsg.headers = {\n    'content-type':'text/plain',     \n    'Cookie': 'JSESSIONID=nDwPdk0IUbCKkhZRzHf2e4Sksie9wMZE'}\n\nreturn msg;\n","outputs":1,"noerr":0,"x":360,"y":180,"wires":[["95de7cab.12a07"]]},{"id":"95de7cab.12a07","type":"http request","z":"e754637a.afc6f","name":"","method":"GET","ret":"obj","paytoqs":false,"url":"","tls":"4baf255d.26cd0c","persist":false,"proxy":"","authType":"","x":630,"y":180,"wires":[["98292fc3.fa044"]]},{"id":"98292fc3.fa044","type":"function","z":"e754637a.afc6f","name":"get AP mac","func":"global.set(\"apMac\", msg.payload.list[0].mac);\n//node.warn(msg.payload.list[0]);\nmsg.payload = msg.payload.list\nreturn msg;","outputs":1,"noerr":0,"x":850,"y":180,"wires":[["5aa074af.53a1bc"]]},{"id":"5aa074af.53a1bc","type":"debug","z":"e754637a.afc6f","name":"","active":false,"tosidebar":true,"console":false,"tostatus":true,"complete":"payload","targetType":"msg","x":1110,"y":180,"wires":[]},{"id":"6cb6529e.79932c","type":"comment","z":"e754637a.afc6f","name":"REST API calls to SZ to retrieve the AP GPS coordinates","info":"","x":250,"y":80,"wires":[]},{"id":"4ddf0b78.96d664","type":"tls-config","z":"","name":"","cert":"","key":"","ca":"","certname":"","keyname":"","caname":"","verifyservercert":false},{"id":"4baf255d.26cd0c","type":"tls-config","z":"","name":"","cert":"","key":"","ca":"","certname":"","keyname":"","caname":"","servername":"","verifyservercert":false}]
+[
+    {
+        "id": "7fa9ac22.a4d204",
+        "type": "inject",
+        "z": "e754637a.afc6f",
+        "name": "",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "1",
+        "x": 130,
+        "y": 120,
+        "wires": [
+            [
+                "b4819be0.62dbf8"
+            ]
+        ]
+    },
+    {
+        "id": "3b23bb42.90b924",
+        "type": "http request",
+        "z": "e754637a.afc6f",
+        "name": "",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": false,
+        "url": "",
+        "tls": "4ddf0b78.96d664",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 630,
+        "y": 120,
+        "wires": [
+            [
+                "7b40c3ea.4a089c"
+            ]
+        ]
+    },
+    {
+        "id": "b4819be0.62dbf8",
+        "type": "function",
+        "z": "e754637a.afc6f",
+        "name": "get service ticket",
+        "func": "// global variables and values\n\nglobal.set(\"szAddress\", \"https://A.B.C.D:8443\");\n\nvar szAddress = global.get(\"szAddress\");\n\n//API call to get service token\nmsg.url = szAddress.concat(\"/wsg/api/public/v8_1/serviceTicket\");\n//node.warn(msg.url);\n\nmsg.headers = {\n    'content-type':'text/plain',     \n    'Cookie': 'JSESSIONID=nDwPdk0IUbCKkhZRzHf2e4Sksie9wMZE'}\n\nmsg.payload = {\n    \"username\":\"admin\",\n    \"password\":\"password\"}\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 390,
+        "y": 120,
+        "wires": [
+            [
+                "3b23bb42.90b924"
+            ]
+        ]
+    },
+    {
+        "id": "7b40c3ea.4a089c",
+        "type": "function",
+        "z": "e754637a.afc6f",
+        "name": "save service ticket",
+        "func": "var response = msg.payload;\n\nglobal.set(\"serviceTicket\", response.serviceTicket);\nglobal.set(\"controllerVersion\", response.controllerVersion);\n//node.warn(response.serviceTicket)\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 870,
+        "y": 120,
+        "wires": [
+            [
+                "c6a917d4.8474d8"
+            ]
+        ]
+    },
+    {
+        "id": "c6a917d4.8474d8",
+        "type": "debug",
+        "z": "e754637a.afc6f",
+        "name": "",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1110,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "9a5a3839.86df58",
+        "type": "inject",
+        "z": "e754637a.afc6f",
+        "name": "",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "4",
+        "x": 130,
+        "y": 240,
+        "wires": [
+            [
+                "7656c9f3.85ca58"
+            ]
+        ]
+    },
+    {
+        "id": "7656c9f3.85ca58",
+        "type": "function",
+        "z": "e754637a.afc6f",
+        "name": "get AP configuration",
+        "func": "var szAddress = global.get(\"szAddress\");\nvar serviceTicket = global.get(\"serviceTicket\")\nvar apMAC = global.get(\"apMac\")\n\n//API call to get service token\nvar url = szAddress + \"/wsg/api/public/v9_0/aps/\" + apMAC + \"?serviceTicket=\" + serviceTicket\nmsg.url = url;\n//node.warn(msg.url);\n\nmsg.headers = {\n    'content-type':'text/plain',     \n    'Cookie': 'JSESSIONID=nDwPdk0IUbCKkhZRzHf2e4Sksie9wMZE'}\n\nreturn msg;\n\n\n//wsg/api/public/v9_0/aps?serviceTicket={{serviceTicket}}",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 400,
+        "y": 240,
+        "wires": [
+            [
+                "b5c5a6b3.dc7d18"
+            ]
+        ]
+    },
+    {
+        "id": "b5c5a6b3.dc7d18",
+        "type": "http request",
+        "z": "e754637a.afc6f",
+        "name": "",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": false,
+        "url": "",
+        "tls": "4baf255d.26cd0c",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 630,
+        "y": 240,
+        "wires": [
+            [
+                "b1ae22e4.c8aa6"
+            ]
+        ]
+    },
+    {
+        "id": "b1ae22e4.c8aa6",
+        "type": "function",
+        "z": "e754637a.afc6f",
+        "name": "get gps coordinates",
+        "func": "global.set(\"latitude\", msg.payload.latitude);\nglobal.set(\"longitude\", msg.payload.longitude);\n\n//node.warn(msg.payload);\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 880,
+        "y": 240,
+        "wires": [
+            [
+                "54275ca1.458e74"
+            ]
+        ]
+    },
+    {
+        "id": "54275ca1.458e74",
+        "type": "debug",
+        "z": "e754637a.afc6f",
+        "name": "",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1110,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "2cb45aac.f4c696",
+        "type": "inject",
+        "z": "e754637a.afc6f",
+        "name": "",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "3",
+        "x": 130,
+        "y": 180,
+        "wires": [
+            [
+                "ec3e7901.ffb538"
+            ]
+        ]
+    },
+    {
+        "id": "ec3e7901.ffb538",
+        "type": "function",
+        "z": "e754637a.afc6f",
+        "name": "get APs",
+        "func": "var szAddress = global.get(\"szAddress\");\nvar serviceTicket = global.get(\"serviceTicket\")\n\n//API call to get service token\nvar url = szAddress + \"/wsg/api/public/v9_0/aps?serviceTicket=\" + serviceTicket\nmsg.url = url\n//node.warn(msg.url);\n\nmsg.headers = {\n    'content-type':'text/plain',     \n    'Cookie': 'JSESSIONID=nDwPdk0IUbCKkhZRzHf2e4Sksie9wMZE'}\n\nreturn msg;\n",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 360,
+        "y": 180,
+        "wires": [
+            [
+                "95de7cab.12a07"
+            ]
+        ]
+    },
+    {
+        "id": "95de7cab.12a07",
+        "type": "http request",
+        "z": "e754637a.afc6f",
+        "name": "",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": false,
+        "url": "",
+        "tls": "4baf255d.26cd0c",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 630,
+        "y": 180,
+        "wires": [
+            [
+                "98292fc3.fa044"
+            ]
+        ]
+    },
+    {
+        "id": "98292fc3.fa044",
+        "type": "function",
+        "z": "e754637a.afc6f",
+        "name": "get AP mac",
+        "func": "global.set(\"apMac\", msg.payload.list[0].mac);\n//node.warn(msg.payload.list[0]);\nmsg.payload = msg.payload.list\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 850,
+        "y": 180,
+        "wires": [
+            [
+                "5aa074af.53a1bc"
+            ]
+        ]
+    },
+    {
+        "id": "5aa074af.53a1bc",
+        "type": "debug",
+        "z": "e754637a.afc6f",
+        "name": "",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1110,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "6cb6529e.79932c",
+        "type": "comment",
+        "z": "e754637a.afc6f",
+        "name": "REST API calls to SZ to retrieve the AP GPS coordinates",
+        "info": "",
+        "x": 250,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "4ddf0b78.96d664",
+        "type": "tls-config",
+        "z": "",
+        "name": "",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "",
+        "keyname": "",
+        "caname": "",
+        "verifyservercert": false
+    },
+    {
+        "id": "4baf255d.26cd0c",
+        "type": "tls-config",
+        "z": "",
+        "name": "",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "",
+        "keyname": "",
+        "caname": "",
+        "servername": "",
+        "verifyservercert": false
+    }
+]
