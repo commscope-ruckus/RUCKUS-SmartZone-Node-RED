@@ -1,0 +1,57 @@
+It is hard to create an application to connect to the SZ mqtt internal mosquitto broker directly, because that application would need to take care of the authentication and encryption to establish the connection.
+
+The best approach is to configure a local mosquito broker, and let it connect to the SZ mosquitto and handle the authentication and encryption. Then your application can connect to the local broker without any authentication or encryption.
+
+First, configure a LBS service in your SmartZone. Follow these steps:
+
+1. Navigate to Systems/General Settings/Location Service. Click on +Create to add a new venue, and fill in the venue name, server address, port and password. Server address is the IP address for the host that will run the external mosquitto broker. Port should be 8883. The venue name will be used in step 7.
+2. Convert the password you type in to hexadecimal. You can use this site:
+https://www.rapidtables.com/convert/number/ascii-to-hex.html. You will use the converted password as a PSK key in step 7.
+3. Create a zone, and add one access point to it. Under the Zone configuration, Advanced Options, set the LBS as the service you created at step 1.
+4. Create a WLAN under the zone.
+
+Now, follow these steps to install a local mosquitto broker (assuming a Windows workstation):
+
+5. Navigate to https://mosquitto.org/files/binary/win32/ to download the software and install the mosquitto 1.3.5 broker for Windows. 
+Attention: Do not install the latest version. The mosquitto instance running at the SmartZone controller uses TLS v1.0, and the latest releases of mosquitto for windows support TLS v1.1 or superior. Do not install the mosquitto broker as a Windows service. You will start the broker manually. 
+6.Under the directory where the mosquitto software was installed, edit the configuration file named mosquitto.conf. You only need the following lines:
+
+port 1883
+listener 8883
+psk_hint alpha
+psk_file alpha.txt
+tls_version tlsv1
+
+7. In the same directory where the mosquitto.conf file is, create a file named alpha.txt and add just one line containing the following:
+<your venue name>:<password in hexa>
+
+Example:
+lbstest:7275636b757331323321
+
+8. Start your local mosquitto with the following command:
+mosquitto -c mosquitto.conf -v
+
+If everything is right you will see lines similar to these:
+
+C:\Program Files (x86)\mosquitto>mosquitto -c mosquitto.conf -v
+1576450246: mosquitto version 1.3.5 (build date 08/10/2014 22:54:48.60) starting
+1576450246: Config loaded from mosquitto.conf.
+1576450246: Opening ipv6 listen socket on port 8883.
+1576450246: Opening ipv4 listen socket on port 8883.
+1576450246: Opening ipv6 listen socket on port 1883.
+1576450246: Opening ipv4 listen socket on port 1883.
+1576450249: New connection from 12.163.77.138 on port 8883.
+1576450249: New client connected from 12.163.77.138 as mosqpub/4467-vSZ-E-Sale (c2, k60).
+1576450249: Sending CONNACK to mosqpub/4467-vSZ-E-Sale (0)
+1576450249: Received PUBLISH from mosqpub/4467-vSZ-E-Sale (d0, q0, r0, m0, '"test"', ... (6 bytes))
+1576450250: Received DISCONNECT from mosqpub/4467-vSZ-E-Sale
+1576452020: Received PINGREQ from vSZ-E-SalesDemo.lbstest
+1576452020: Sending PINGRESP to vSZ-E-SalesDemo.lbstest
+
+You can now run the Node-RED mqtt flows.
+
+For more details about accessing the SZ pre-engine API and its MQTT message formatting please read the document at
+https://ruckuswireless.egnyte.com/dl/XKumwLZ4LY/TN_Accessing _the_SZ_Pre-Engine_API.pdf_
+
+
+
