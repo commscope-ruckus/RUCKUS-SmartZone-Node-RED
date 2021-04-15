@@ -1,0 +1,11 @@
+The NR node modules you will need to install BEFORE importing the workflow are:
+·         node-red (core nodes) - v1.2.9
+·         node-red-dashboard - v2.28.1
+·         node-red-node-email - v1.9.0
+·         node-red-node-ui-table - v0.3.10
+ 
+Configurations you need to update in the workflow:
+·         In the Settings node (top left) you need to edit the JSON payload and change the SZ IP to point at yours, and the SZ login credentials
+·         In there are also placeholders for SMS and EMail notifications
+ 
+At the bottom of the workflow there is a long note in the node “** Read-Me for Instructions on adding new per Area Access Information Displays **" about adding new Area for per Area Access Information displays. If you want to change the names of the currently configured per Area Access Information Displays then you can do that in the nodes "Send Selected AP Group Info" & "Send Updated AP Group Info" - use the Readme to figure where to change them. The AP Group (Area) names need to match what you have configured on the SZ (case insensitive).
