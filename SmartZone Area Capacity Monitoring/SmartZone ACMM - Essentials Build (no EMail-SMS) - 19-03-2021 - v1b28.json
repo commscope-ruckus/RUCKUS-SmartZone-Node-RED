@@ -1,1 +1,1988 @@
-[{"id":"ef97fb1b.89a498","type":"tab","label":"SZ ACM&M","disabled":false,"info":""},{"id":"a4c15edb.b0ce4","type":"inject","z":"ef97fb1b.89a498","name":"Settings","props":[{"p":"payload"}],"repeat":"3600","crontab":"","once":true,"onceDelay":"1","topic":"","payload":"{\"System\":{\"version\":\"Version 1.28\",\"program\":\"SmartZone Area Capacity Management & Monitoring Application (ACMM)\",\"author\":\"Eddie Felmer\",\"copyright\":\"Eddie Felmer / Ruckus\",\"LocalTime\":\"en-GB\"},\"SystemPaths\":{\"SZ_IPaddress\":\"https://10.100.10.20:8443\",\"login_Name\":\"admin\",\"login_Password\":\"RuckusSZ123!\"},\"SMS\":{\"SMSServer\":\"<SMS Service URL>\",\"SMSSender\":\"Area Alert\",\"PRInumber\":\"<Primary Send To Mobile number incl. country code>\",\"SECnumber\":\"\",\"api_key\":\"<SMS Service API Key>\",\"api_secret\":\"<SMS Service API Secret>\"},\"EMAIL\":{\"EMAILServer\":\"<entered in the EMail node>\",\"EMAILPort\":\"<entered in the EMail node>\",\"EMAILAccount\":\"<entered in the EMail node>\",\"EMAILPassword\":\"<entered in the EMail node>\",\"EMAILtopic\":\"<The EMail Subject - entered in the Send EMail & SMS Alerts node>\",\"EMAILto\":\"<Primary Send To EMail address>\",\"EMAILfrom\":\"<Sent from EMail address - not always honoured>\",\"EMAILcc\":\"\"}}","payloadType":"json","x":120,"y":80,"wires":[["1c665f50.df55e1"]]},{"id":"1f5a827c.68cb8e","type":"http request","z":"ef97fb1b.89a498","name":"http POST","method":"POST","ret":"obj","paytoqs":"ignore","url":"","tls":"d8d96dbf.ae322","persist":false,"proxy":"","authType":"","x":790,"y":80,"wires":[["97c8b12a.51125"]]},{"id":"1c665f50.df55e1","type":"function","z":"ef97fb1b.89a498","name":"Get service ticket/set variables","func":"//Set general variables\nvar Settings = msg.payload;\nflow.set(\"Settings\", Settings);\nflow.set(\"szAddress\", Settings.SystemPaths.SZ_IPaddress);\nflow.set(\"loginName\", Settings.SystemPaths.login_Name);\nflow.set(\"loginPassword\", Settings.SystemPaths.login_Password);\nflow.set(\"appVersion\", Settings.System.version);\n\n//Get a new service token\nmsg.url = flow.get(\"szAddress\").concat(\"/wsg/api/public/v9_1/serviceTicket\");\n\nmsg.headers = {};\nmsg.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n\nmsg.payload = {\n    \"username\": flow.get(\"loginName\"),\n    \"password\": flow.get(\"loginPassword\")\n};\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":450,"y":80,"wires":[["1f5a827c.68cb8e"]]},{"id":"97c8b12a.51125","type":"function","z":"ef97fb1b.89a498","name":"Save service ticket","func":"var response = msg.payload;\nvar responseCode = msg.statusCode\n\n//Check that SZ HTTP connection and login was succesful\n//If not send debug warning to console and debug\nif (responseCode != 200) {\n    node.warn([\"SZ connection fail with HTTP response\", responseCode]);\nreturn;\n}\n\nelse {\n    flow.set(\"vSZSessionCookie\", msg.responseCookies.JSESSIONID.value);\n    flow.set(\"serviceTicket\", response.serviceTicket);\n}\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":1150,"y":80,"wires":[["eeea6cd8.7e84d"]]},{"id":"15142b3e.5fed25","type":"http request","z":"ef97fb1b.89a498","name":"http POST","method":"POST","ret":"obj","paytoqs":"ignore","url":"","tls":"1b375f38.3b6b71","persist":false,"proxy":"","authType":"","x":1750,"y":80,"wires":[[]]},{"id":"eeea6cd8.7e84d","type":"function","z":"ef97fb1b.89a498","name":"Initiate Session","func":"//Open a session to SZ\nmsg.url = flow.get(\"szAddress\").concat(\"/wsg/api/public/v9_1/session\");\n\nmsg.headers = {};\n    msg.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"vSZSessionCookie\");\n\nmsg.payload = {\n    \"username\": flow.get(\"loginName\"),\n    \"password\": flow.get(\"loginPassword\"),\n    \"timeZoneUtcOffset\": \"+00:00\"\n};\n\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":1440,"y":80,"wires":[["15142b3e.5fed25"]]},{"id":"965748db.bc8ea8","type":"function","z":"ef97fb1b.89a498","name":"Get SZ System Info","func":"//API call to get SZ System Info \nmsg.url = flow.get(\"szAddress\").concat(\"/wsg/api/public/v9_1/controller?serviceTicket=\");\nmsg.url = msg.url.concat(flow.get(\"serviceTicket\"));\n\nmsg.headers = {};\n    msg.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"vSZSessionCookie\");\n\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":410,"y":180,"wires":[["1df9a3d2.a97dac"]]},{"id":"634d2a38.7d1764","type":"ui_table","z":"ef97fb1b.89a498","group":"adf183d8.301fe","name":"SmartZone Sys Info","order":1,"width":25,"height":1,"columns":[{"field":"hostName","title":"SmartZone System Name","width":"","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}},{"field":"model","title":"Model","width":"","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}},{"field":"version","title":"Software Version","width":"","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}},{"field":"upTime","title":"Up Time","width":"","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}},{"field":"appVersion","title":"ACMM Application Version","width":"","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}}],"outputs":0,"cts":false,"x":1720,"y":180,"wires":[]},{"id":"1df9a3d2.a97dac","type":"http request","z":"ef97fb1b.89a498","name":"http get","method":"GET","ret":"obj","paytoqs":"ignore","url":"","tls":"1b375f38.3b6b71","persist":false,"proxy":"","authType":"","x":780,"y":180,"wires":[["8ddb65e7.51cb48"]]},{"id":"8ddb65e7.51cb48","type":"function","z":"ef97fb1b.89a498","name":"Set System Info","func":"var controllerVersion = (msg.payload.list[0].version);\nvar model = (msg.payload.list[0].model);\nvar hostName = (msg.payload.list[0].hostName);\n\n//Take the SZ uptime in seconds and convert to Days, Hours, Minutes\n//1. Get the SZ uptime in seconds\nvar upTimeSec = (msg.payload.list[0].uptimeInSec);\n\n//2. To work out uptime Days value take the uptime seconds and divide by 86400, then use Math.floor to round it down to nearest whole number\n//Then take the days value, multiply by it by 3600 and subract that from the inital total uptime using -= to carry over Hours and \n//Minutes left in seconds.\n//Repeat similar process to get Hours value and then again for Minute value\nvar days     = Math.floor(upTimeSec / (24*60*60));\nupTimeSec -= days    * (24*60*60);\n\nvar hours    = Math.floor(upTimeSec / (60*60));\nupTimeSec -= hours   * (60*60);\n  \nvar minutes  = Math.floor(upTimeSec / (60));\nupTimeSec -= minutes * (60);\n  \n//3. To have leading 0 when required convert the numbers to strings and use padStart() to enforce a minimum number of digits\nvar upTimeFormatted = ((0<days)?(days+\"d, \"):\"\")+hours.toString().padStart(2, '0')+\"h, \"+minutes.toString().padStart(2, '0')+\"m\";\n\nvar sysInfo = [{\"model\": model, \"hostName\": hostName, \"version\": controllerVersion, \"upTime\": upTimeFormatted, \"appVersion\": flow.get(\"appVersion\")}];\n\nmsg.payload = sysInfo;\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":1140,"y":180,"wires":[["634d2a38.7d1764"]]},{"id":"13410b07.b3c8f5","type":"inject","z":"ef97fb1b.89a498","name":"","props":[{"p":"payload"}],"repeat":"30","crontab":"","once":true,"onceDelay":"2","topic":"","payload":"","payloadType":"date","x":130,"y":180,"wires":[["965748db.bc8ea8"]]},{"id":"ee04fce1.4fb59","type":"comment","z":"ef97fb1b.89a498","name":"Get SZ service ticket and open a session to it","info":"","x":210,"y":40,"wires":[]},{"id":"7e6a1106.e0c6e","type":"comment","z":"ef97fb1b.89a498","name":"Get SZ System info every 30 seconds","info":"","x":190,"y":140,"wires":[]},{"id":"a81d136.d4681f","type":"comment","z":"ef97fb1b.89a498","name":"Populate AP Group (Area) table for selected Zone","info":"","x":1500,"y":440,"wires":[]},{"id":"659ca3e0.d76f1c","type":"comment","z":"ef97fb1b.89a498","name":"Selected AP Grpup (Area) AP Health status","info":"","x":1660,"y":500,"wires":[]},{"id":"3099d11.cadc92e","type":"comment","z":"ef97fb1b.89a498","name":"Populate Zone list table for selected Domain","info":"","x":750,"y":260,"wires":[]},{"id":"23aec0b2.57744","type":"comment","z":"ef97fb1b.89a498","name":"Populate AP Health Status for selected AP Group","info":"","x":1060,"y":620,"wires":[]},{"id":"b813d600.367318","type":"comment","z":"ef97fb1b.89a498","name":"Send Refresh & Clear Data to all Tables & Charts","info":"","x":300,"y":380,"wires":[]},{"id":"f022cd27.6a294","type":"function","z":"ef97fb1b.89a498","name":"Send EMail & SMS Alerts","func":"var Settings=flow.get(\"Settings\");\n\nif (typeof msg.payload == \"undefined\"){\n    return;\n}\nmsg1 = {};\nmsg1.to = Settings.EMAIL.EMAILto;\nmsg1.cc = Settings.EMAIL.EMAILcc;\nmsg1.from = Settings.EMAIL.EMAILfrom;\nmsg1.topic = \"The Area \"+msg.payload.alertapgroupName+\" has reached, or exceeded its maximum Capacity\";\nmsg1.payload = \"<font size = 4>An <font color=red><B>ALERT</B></font color> has been triggered for the the Area <B>\"+msg.payload.alertapgroupName+\"</B>. <BR><BR> The total connected Device count in this Area is <B>\"+msg.payload.alertapgroupdeviceNum+\"</B> which equals, or exceeds the configured Area Capacity threshold of <B>\"+msg.payload.alertapgroupThreshold+\"</B>.\";\nnode.send([msg1, null]);\nnode.done();\n\nmsg2 = {};\nmsg2.url = Settings.SMS.SMSServer;\nmsg2.text = \"An Area Capacity ALERT has been triggered for the the Area \"+msg.payload.alertapgroupName+\". The total connected Device count in this Area is \"+msg.payload.alertapgroupdeviceNum+\" which equals, or exceeds the configured Area Capacity threshold of \"+msg.payload.alertapgroupThreshold+\".\";\n    msg2.payload = {\n        'from': Settings.SMS.SMSSender,\n        'to': Settings.SMS.PRInumber,\n        'text': msg2.text,\n        'api_key':Settings.SMS.api_key,\n        'api_secret': Settings.SMS.api_secret,\n    };\nreturn [null, msg2];","outputs":2,"noerr":0,"initialize":"","finalize":"","x":1570,"y":1140,"wires":[[],[]],"outputLabels":["Send Alert EMail","Send Alert SMS"]},{"id":"9d3b1c25.3d2b7","type":"e-mail","z":"ef97fb1b.89a498","server":"smtp.gmail.com","port":"465","secure":true,"tls":true,"name":"","dname":"EMail","x":1770,"y":1100,"wires":[]},{"id":"27002ddc.974e92","type":"ui_text","z":"ef97fb1b.89a498","group":"adf183d8.301fe","order":8,"width":8,"height":1,"name":"Selected AP Group Health text","label":"<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size = 3><font color=#555555><center>Selected Area AP Health Status Information:</font></p> </body> </html>","format":"","layout":"row-left","x":1689,"y":540,"wires":[],"info":"This has not function apart from putting  text above the WLAN / SSID list"},{"id":"4416fe3.7ecbe","type":"file in","z":"ef97fb1b.89a498","name":"Read from Area Density Data File","filename":"/home/ruckus/Area_Density_Settings.json","format":"utf8","chunk":false,"sendError":false,"encoding":"utf8","x":840,"y":1020,"wires":[["6be6a641.78f6c8"]]},{"id":"a602fe70.930bc","type":"function","z":"ef97fb1b.89a498","name":"Update Area Capacity Table","func":"//Clear table data\nmsg1 = [];\nmsg1.payload = [];\nnode.send([msg1,null,null]);\nnode.done();\n\n//Send text to Notification node\nmsg2 = {};\nmsg2.payload = \"The Area Caapcity Configuration has been Imported and the Table Updated\";\nnode.send([null,msg2,null]);\nnode.done();\n\n//The returned JSON string has a key of \"apgroupSelection\" thus to access the array need to use the format:\n//\"apgroupSelection.[arrayID]\" instead of just the [arrayID]\n//This line imports the data as an array without the key, hence saves having to re-write the original \n//code functions to inlcude the key\nflow.set(\"apgroupSelection\", msg.payload.apgroupSelection);\nmsg3 = {};\nmsg3.payload = flow.get(\"apgroupSelection\");\n\n//Wait for 1.5 seconds for Area Capacity table to clear before updating it\nsetTimeout(function(){\nnode.send([null,null,msg3]);\nnode.done();\n    },1500);\nreturn;","outputs":3,"noerr":0,"initialize":"","finalize":"","x":1400,"y":1020,"wires":[["7a23fd6f.b70e44","974d98d8.8d0618"],["16e7e451.9ba4bc"],["88ffbfa1.3e746"]],"outputLabels":["Clear Tables Data","Notify that Data has been Imported","Send Imported Data for processing"]},{"id":"6be6a641.78f6c8","type":"json","z":"ef97fb1b.89a498","name":"Convert to JSON","property":"payload","action":"","pretty":false,"x":1130,"y":1020,"wires":[["a602fe70.930bc"]]},{"id":"68d35c15.f37194","type":"comment","z":"ef97fb1b.89a498","name":"Export & Import Data - file /home/ruckus/Area_Density_Settings.json","info":"","x":280,"y":918,"wires":[]},{"id":"a1b3c1a5.f0b3","type":"ui_text","z":"ef97fb1b.89a498","group":"adf183d8.301fe","order":24,"width":17,"height":1,"name":"Management - Area Capacity Status Table Text","label":"<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size = 3><font color=black><center><B>Selected Area Capacity Status table</B><font color=grey>&emsp;(Auto-updated on: {{msg.dateTime}})<BR><font color=#696969><B>GREY<font color=black></B> for 0 devices&emsp;|&emsp;<font color=Green><B>GREEN<font color=black></B> for less than Capacity&emsp;|&emsp;<font color=Red><B>RED<font color=black></B> for equal to, or greater than Capacity</center></font></p> </body> </html>","format":"","layout":"row-center","x":1640,"y":720,"wires":[],"info":"This has not function apart from putting  text above the WLAN / SSID list"},{"id":"78c5b0cd.60ce3","type":"function","z":"ef97fb1b.89a498","name":"Save Selected Areas & Thresholds","func":"var apgroupSelection=flow.get(\"apgroupSelection\")\nmsg.payload={\"apgroupSelection\":apgroupSelection}\n            //msg.filename=\"/home/ruckus/Area_Density_Settings.json\" - configured in the File Save node\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":840,"y":960,"wires":[["7c15e5e6.f6bcfc"]]},{"id":"7c15e5e6.f6bcfc","type":"file","z":"ef97fb1b.89a498","name":"Write to File","filename":"/home/ruckus/Area_Density_Settings.json","appendNewline":false,"createDir":true,"overwriteFile":"true","encoding":"utf8","x":1110,"y":960,"wires":[["7e4c93f5.ab8fdc"]]},{"id":"af1cf601.2bd008","type":"ui_text","z":"ef97fb1b.89a498","group":"adf183d8.301fe","order":15,"width":17,"height":1,"name":"Area Threshold Selection Slider text","label":"<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size = 3><font color=black><center><B>Select an Area from the above Area table & then set it's Capacity using the slider</B><BR> (A setting of 0 will remove the selected Area from the Area Capacity Status table)</center></font></p> </body> </html>","format":"","layout":"row-center","x":187,"y":673,"wires":[],"info":"This has not function apart from putting  text above the WLAN / SSID list"},{"id":"974d98d8.8d0618","type":"ui_table","z":"ef97fb1b.89a498","group":"adf183d8.301fe","name":"Management - Area Capacity Status Table","order":27,"width":17,"height":6,"columns":[{"field":"id","title":"Hidden_Index","width":"","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}},{"field":"apgroupName","title":"Hotel Area","width":"40%","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}},{"field":"apgroupColour","title":"<center>Capacity Status</center>","width":"30%","align":"left","formatter":"color","formatterParams":{"target":"_blank"}},{"field":"apgroupdeviceNum","title":"<center>Device Count</center>","width":"15%","align":"center","formatter":"plaintext","formatterParams":{"target":"_blank"}},{"field":"threshold","title":"<center>Capacity</center>","width":"15%","align":"center","formatter":"plaintext","formatterParams":{"target":"_blank"}}],"outputs":0,"cts":false,"x":1660,"y":760,"wires":[]},{"id":"add56a86.73bb38","type":"function","z":"ef97fb1b.89a498","name":"Clear all data/set defaults","func":"//Set key variables to Null value.\n    flow.set(\"zoneID\",null);\n    flow.set(\"zoneName\",null);\n    flow.set(\"apOnline\", null);\n    flow.set(\"apFlagged\", null);\n    flow.set(\"apOffline\", null);\n    flow.set(\"apgroupID\", null); //The SZ AP Group ID\n    flow.set(\"apgroupName\", null); //The SZ AP Group Name aka the Area Name\n    flow.set(\"apgroupnameIndex\", null); //Lower case version of the Area Name used for indexing in the array & tables\n    flow.set(\"apgroupSelection\",[]); //Selected AP Group(s) (Area) data array\n    flow.set(\"threshold\",0); //The Threshold setting for each Area\n\n//Send empty array to clear all the tables out of port 1\nmsg1 = {};\nmsg1.payload = [];\nnode.send([msg1, null, null, null, null]);\n\n//Send null to zero slider out of port 2\nmsg2 = {}\nmsg2.payload = 0;\nnode.send([null, msg2, null, null, null]);\n\n//Set the per Area displays to a default Area status of Unknown\nmsg3 = {};\nmsg3.area = \"undefined\";\nmsg3.colour = \"darkgrey\"; //Set Colour to be used in Status Display page text\nmsg3.fa_icon = \"question-circle\";\nmsg3.message = \"This Areas Status is Unknown - Please check with Staff before entering\";\nnode.send([null,null,msg3,null,null]);\n\n//Send message to hide the lower case Area Name Indexing column \"Hidden_Index\" (id column) in the Area Capacity tables\nmsg4 = {};\nmsg4.topic = \"columns\"\nmsg4.ui_control = {tabulator:{}};\nmsg4.ui_control.tabulator[msg4.topic]= [{\n        \"field\": \"id\",\n        \"title\": \"Hidden_Index\",\n        \"visible\": false,\n        \"formatter\": \"plainText\"\n    }];\nmsg4.payload=null;\nnode.send([null, null, null, msg4, null]);\nnode.done();\n\n//Apply Bold text to Hotel Area Name in the Area Capacity tables before they are populated\nmsg5 = {};\nmsg5.topic = \"columns\"\nmsg5.ui_control = {tabulator:{}};\nmsg5.ui_control.tabulator[msg5.topic]= [{\n        \"field\": \"apgroupName\",\n        \"title\": \"Hotel Area\",\n        \"formatter\": \"function(cell, formatterParams, onRendered) {return \\\"<span style=font-weight:bold;'>\\\" + cell.getValue() + \\\"</span>\\\";}\"\n    },];\nmsg5.payload = null;\nnode.send([null, null, null, msg5, null]);\nnode.done();\n\n//Apply Bold text to Area AP Health Status table & colour\nmsg6 = {};\nmsg6.topic = \"columns\"\nmsg6.ui_control = {tabulator:{}};\nmsg6.ui_control.tabulator[msg6.topic]= [\n    {\n        \"field\": \"onlineCount\",\n        \"title\": \"Online\",\n        \"formatter\": \"function(cell, formatterParams, onRendered) {return \\\"<span style=color:green;font-weight:bold;'>\\\" + cell.getValue() + \\\"</span>\\\";}\"\n    },\n\t    {\n        \"field\": \"flaggedCount\",\n        \"title\": \"Flagged\",\n        \"formatter\": \"function(cell, formatterParams, onRendered) {return \\\"<span style=color:orange;font-weight:bold;'>\\\" + cell.getValue() + \\\"</span>\\\";}\"\n    },\n\t\t    {\n        \"field\": \"offlineCount\",\n        \"title\": \"Offline\",\n        \"formatter\": \"function(cell, formatterParams, onRendered) {return \\\"<span style=color:red;font-weight:bold;'>\\\" + cell.getValue() + \\\"</span>\\\";}\"\n    },\n];\nmsg6.payload = null;\nreturn [null, null, null, null, msg6];","outputs":5,"noerr":0,"initialize":"","finalize":"","x":290,"y":440,"wires":[["974d98d8.8d0618","f9b66637.fdf728","cfb098ed.1acb98","d4a10941.9fc808","16e30fff.1d4c8","7a23fd6f.b70e44","5631cffc.d4f49"],["ff979ac7.25c718"],["26c0cfb1.3ba7a","a1b216cb.853e58","7ecaa891.4bdbf8"],["974d98d8.8d0618","7a23fd6f.b70e44"],["5631cffc.d4f49"]],"outputLabels":["Clear tables","Clear all other Dashboard Data","Send Unkown Area status to Area Monitoring Displays","Send message to hide the Hidden_Index column in Area Capacity tables & apply bold text to Area Name","Set Area AP Health Status table cell format"]},{"id":"538010fe.df7d","type":"function","z":"ef97fb1b.89a498","name":"Send Selected AP Group Info","func":"//Upon an Area being selected and a threshold set, this function node:\n//1. Set status based on Device to Threshold ratio\n//2. Sends updated data to Area Capacity Tables\n//3. Sends updated data to the respective per Area Monitoring status Displays\n//4. Sends EMail Alert if an Area threshold is crossed (won't send again until the Area has been under-threshold again)\n\n//**Note** If you add more Area Monitoring Displays then remember to update all node.send & the final return statements to include the new areas\n\n//Load the currently selected AP Group (Area) flow context array data into a local context data array\nvar apgroupSelection = flow.get(\"apgroupSelection\");\n\n//Check what index number in the array the selected AP Group (Area) is and set checkIndex to its value\ncheckIndex = apgroupSelection.findIndex(obj => obj.id == flow.get(\"apgroupName\").toLowerCase());\n\n//This section:\n//1. Configures the per Area status for each entry in the Area Status table where checkIndex = current index in flow array apgroupSelection\n// to track which Area Status table entry is currently being updated\n//2. Sends the updated per Area Status to the configured per Area Monitoring Display pages\n//3. Tracks, configures and sends E-Mail alert if required\n\n//Define message variable to be sent with per Area Monitoring Status display\n//Set the AP Group (Area) name to be upper case for display in the per Area Displays\nvar msg2 = {};\nmsg2.area = flow.get(\"apgroupName\").toUpperCase();\n\n//Device count = 0 - if it is then set status colour to grey i.e. 0 devices in the Area\nif (msg.payload.totalCount == 0) {\n\tmsg2.colour = \"darkgrey\";\n\tmsg2.fa_icon = \"question-circle\";\n    msg2.message = \"This Areas Status is Unknown - Please check with Staff before entering\";\n    apgroupSelection[checkIndex].alert = false; //Sets E-Mail Alert flag back to false so can be triggered again if over-threshold crossed\n}\n//Device count less than Threshold = Green\nif ((msg.payload.totalCount > 0) && (msg.payload.totalCount < flow.get(\"threshold\"))) {\n\tmsg2.colour = \"green\";\n\tmsg2.fa_icon = \"check-circle\";\n    msg2.message = \"You may Safely Enter this Area\";\n    apgroupSelection[checkIndex].alert = false; //Sets E-Mail Alert flag back to false so can be triggered again if over-threshold crossed\n}\n//Device count equal to, or more than the Threshold = Red\nif ((msg.payload.totalCount > 0) && (msg.payload.totalCount >= flow.get(\"threshold\"))) {\n\tmsg2.colour = \"red\";\n\tmsg2.fa_icon = \"times-circle\";\n    msg2.message = \"This Area is at it's Maximum Capacity. Please come back later...\";\n\n//If an EMail Alert hasn't been sent (alert == false) then send one and set alert flag to true indicating one has now been sent\n//This ensures that an EMail Alert will only be sent the 1st time an AP Group (Area) goes over the threshold\n//It has to go below the threshold and over again for another EMail alert to be sent\n if (apgroupSelection[checkIndex].alert == false) {\n        apgroupSelection[checkIndex].alert = true; //Set flag that EMail Alert sent and prevent another one sent until crosses threshold again\n}       \n//Define EMail alert content data and forward to EMail Alert send node\n//Define a new msg variable as its best practice not to write over the received msg.payload    \n        var msg1 = {};\n        msg1.payload = {\"alertapgroupName\": flow.get(\"apgroupName\").toUpperCase(), \"alertapgroupdeviceNum\": msg.payload.totalCount, \"alertapgroupThreshold\": flow.get(\"threshold\")};\n        node.send([null, msg1, null, null, null]); \n        node.done();\n}\n\n//PER AREA ACCESS INFORMATION DISPLAYS\n//Send Info to correct Area ui_Template node for display in the respective per Area Access Information Displays\n//The apgroupNameIndex is always lower case, so using .toLowerCase() function just in case differnet case used in SZ AP Group Name\nif (flow.get(\"apgroupnameIndex\") === \"CONFERENCING\".toLowerCase()) {\n\tnode.send([null, null, msg2, null, null]); \n\tnode.done();\n}\nif (flow.get(\"apgroupnameIndex\") === \"RESTAURANT\".toLowerCase()) {\n\tnode.send([null, null, null, msg2, null]); \n\tnode.done();\t\n}\t\nif (flow.get(\"apgroupnameIndex\") === \"BAR\".toLowerCase()) {\n\tnode.send([null, null, null, null, msg2]); \n\tnode.done();\t\n}\n\n//Add or Update data in the Area Capacity table.\n//Note that the \"id\" is used to define the index for each each row in a ui_table\n//I am using the lower-case selected AP Group (Area) Name for this\nvar msg3={};\nmsg3.payload = {\n    command: \"updateOrAddData\",\n    arguments: [[\n        {\n            \"id\": flow.get(\"apgroupnameIndex\"),\n            \"apgroupName\": flow.get(\"apgroupName\"),\n            \"apgroupColour\": msg2.colour,\n            \"apgroupdeviceNum\": msg.payload.totalCount,\n            \"threshold\": flow.get(\"threshold\")\n        },\n    ]],\n    returnPromise: false\n}\nreturn[msg3, null, null, null,null];","outputs":5,"noerr":0,"initialize":"","finalize":"","x":1207,"y":798,"wires":[["974d98d8.8d0618","7a23fd6f.b70e44"],["f022cd27.6a294"],["26c0cfb1.3ba7a"],["a1b216cb.853e58"],["7ecaa891.4bdbf8"]],"outputLabels":["Send data to Area Capacity Status table","Send data to EMail Alert","Send data to CONFERENCING Area Display","Send data to RESTAURANT Area Display","Send data to BAR Area Display"]},{"id":"ce83b333.cf365","type":"function","z":"ef97fb1b.89a498","name":"Update Array & Table entries","func":"//The function is split into to 4 parts:\n//1st deals with checking if the currently selected AP Group (Area) exists in the array\n//2nd checks if it does and if threshold = 0 then deletes it from the array and the Device Density table\n//3rd checks if it dopes and updates the threshold\n//4th checks if it doesn't exist and add it to the array and Device Density table\n\n//Exit if Slider selection cancelled\nif(msg.payload == \"Cancel\") {\n    return;\n}\n\n//Load the currently selected AP Group (Area) flow context array data into a local context data array\nvar apgroupSelection = flow.get(\"apgroupSelection\");\n\n//Set apgroupnameIndex to be lower-case version of apgroupName as its used as case insensitive lookup field\nflow.set(\"apgroupnameIndex\", flow.get(\"apgroupName\").toLowerCase());\n\n//Check to see if the selected AP Group (Area) already exists in the selected AP Group array\n//Set the variable \"checkIndex\" to be the array index number of the selected AP Group (Area)\n//When checked it will return -1 if its not in the array\n//id is the lower-case selected AP group name which can be compared to lower-case conversion of the selected AP Group Area name\ncheckIndex = apgroupSelection.findIndex(obj => obj.id == flow.get(\"apgroupName\").toLowerCase());\n\n//If the selected AP Group (Area) doesn't exist array (checkIndex is < 0) and threshold value = 0 then bring up warning\nif (checkIndex < 0 && flow.get(\"threshold\") == 0){\n    var msg1 = {};\n    msg1.socketid = msg.socketid; // Required to stop notification popping up in all browser windows\n    msg1.payload = '<!DOCTYPE html><html lang=\"en\"><head></head><body><center>You cannot set a Capacity Threshold of <B>0</B> for the selected Area <B>'+flow.get(\"apgroupName\")+'</B> as it has not previously been added to the Area Capacity Status table.</BR>Please select a Threshold value greater than <B>0</B> (0 is used to remove an existing table entry). </body></html>';\n    return [null,null,msg1];\n}\n\n//If the selected AP Group (Area) entry already exists in the array (checkIndex is 0 or greater) and threshold value = 0 \n//then delete it from the AP Group array & Device Density table\nif (checkIndex > -1 && flow.get(\"threshold\") == 0){\n    apgroupSelection.splice(checkIndex,1);\n//Send selected AP Group (Area) name as payload argument to clear entry from the Area Density table out of port 1\n//Define a new msg variable as its best practice not to write over the received msg payload\nmsg2 = {}\nmsg2.payload = {\n    \"command\":\"deleteRow\",\n    \"arguments\": \n    [flow.get(\"apgroupnameIndex\")], //Specifies which entry to delete as this variable is the row index field in the table\n    \"returnPromise\": false }\nreturn [msg2,null,null];\n}\n\n//If the selected AP Group (Area) entry already exists in the array (checkIndex is 0 or greater)  \n//then update its Threshold configuration in the AP Group (Area) array\nif (checkIndex > -1 && flow.get(\"threshold\") > 0){\napgroupSelection[checkIndex].threshold = flow.get(\"threshold\");\n}\n\n//Check if selected entry exists in the array, if not Push it in there as new entry\nif (checkIndex < 0 && flow.get(\"threshold\") > 0){\napgroupSelection.push({id: flow.get(\"apgroupnameIndex\"),apgroupName: flow.get(\"apgroupName\"),groupId: flow.get(\"apgroupID\"),threshold: flow.get(\"threshold\"),alert: false});\n}\n\n//Format POST to get the client details for the selected AP group\n//The Limit is set to 1 as not interested in returning all clients details, only the total clients per AP Group (Area))\nmsg3 = {};\nmsg3.url = flow.get(\"szAddress\").concat(\"/wsg/api/public/v9_1/query/client?serviceTicket=\");\nmsg3.url = msg3.url.concat(flow.get(\"serviceTicket\"));\n\nmsg3.headers = {};\n    msg3.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg3.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"vSZSessionCookie\");\n\nmsg3.payload = {\n    \"filters\":\n\t\t[{\"type\": \"APGROUP\",\"value\": flow.get(\"apgroupID\")}],\n\t\"limit\": 1,\n\t\"page\": 1\n    }\nreturn[null,msg3,null];","outputs":3,"noerr":0,"initialize":"","finalize":"","x":720,"y":796,"wires":[["974d98d8.8d0618","7a23fd6f.b70e44"],["6a22d169.16606"],["cba292c8.4973e"]],"outputLabels":["Clear current Area entry from Device Density table","Send updated Threshold or Add new Area to table","Popup warning that Threshold can't be 0 for an Area that isn't in the Device Density table"]},{"id":"f33a0a98.21c3e8","type":"function","z":"ef97fb1b.89a498","name":"Send  Updated AP Group Info","func":"//This function node Periodically:\n//1. Sends date/time update to the Area Capacity table each time its automatically updated\n//2. Set colour status based on Device to Threshold ratio\n//3. Sends updated data to Area Capacity Tables\n//4. Sends updated data to the respective per Area Monitoring status Displays\n//5. Sends EMail Alert if an Area threshold is crossed (won't send again until the Area has been under-threshold again)\n\n//**Note** If you add more Area Monitoring Displays then remember to update all node.send & the final return statements to include the new areas\n\n//Check if incoming msg.timestamp from Inject timestamp node is an integer\n//If it is then get.format current date/time and send out of port 1 to update the Area Capacity table header\nif (Number.isInteger(msg.payload)) {\n    fullDateTime = new Date(); //Get full date and time\n    stringDateTime = fullDateTime.toString(); //Convert to a string\n    currentDateTime = stringDateTime.substr(0, 24); //Truncate to strip timezone info at end of string  \n    //Send current Date and Time update\n    var msg1 = {};\n    msg1.dateTime = currentDateTime;\n    node.send([msg1, null, null, null, null, null]);\n    node.done();\n}\n\n//Check if the loopCounter passed from downstream function node/http request is undefined\n//If it is  then it means that this function node was called for a date/time update, not data update\n//So skip sending data update as its just a date/time update above performed\nif (typeof msg.loopCounter == \"undefined\") {\nreturn;\n}\n\nelse {\n//msg.loopCounter = current index in flow array apgroupSelection from the node \"Update Area Capacity Table\"\n\n//This section:\n//1. Configures the per Area status for each entry in the Area Status table where msg.loopCounter = current index in flow array apgroupSelection\n// from the node \"Update Area Capacity Table\" is to track which Area Status table entry is currently being updated\n//2. Sends the updated per Area Status to the configured per Area Monitoring Display pages\n//3. Tracks, configures and sends E-Mail alert if required\n\n//Note: Incoming msg.area is same case AP Group (Area) Name as configured on SZ\n//msg.id is the AP Group (Area) Name in lower case used for indexing lookups in tables and array\n\n//Define message variable to be sent with per Area Monitoring Status display\nvar msg2 = {};\nmsg2.area = msg.area;\nmsg2.dateTime = currentDateTime;\n\n//Device count = 0 - if it is then set status colour to Grey i.e. 0 devices in the Area\nif (msg.payload.totalCount == 0) {\n\tmsg2.colour = \"darkgrey\";\n    msg2.fa_icon = \"question-circle\";\n    msg2.message = \"This Areas Status is Unknown - Please check with Staff before entering\";\n\tflow.set(\"apgroupSelection[\"+msg.loopCounter+\"].alert\", false); //Sets E-Mail Alert flag back to false so can be triggered again if over-threshold crossed\n}\n//Device count less than Threshold = Green\nif ((msg.payload.totalCount > 0) && (msg.payload.totalCount < msg.threshold)) {\n\tmsg2.colour = \"green\";\n\tmsg2.fa_icon = \"check-circle\";\n    msg2.message = \"You may Safely Enter this Area\";\n\tflow.set(\"apgroupSelection[\"+msg.loopCounter+\"].alert\", false); //Sets E-Mail Alert flag back to false so can be triggered again if over-threshold crossed\n}\n//Device count equal to, or more than Threshold = Red\nif ((msg.payload.totalCount > 0) && (msg.payload.totalCount >= msg.threshold)) {\n\tmsg2.colour = \"red\";\n\tmsg2.fa_icon = \"times-circle\";\n    msg2.message = \"This Area is at it's Maximum Capacity. Please come back later...\";\n\n//If an EMail Alert hasn't been sent (alert == false) then send one and set alert flag to true indicating one has now been sent\n//This ensures that an EMail Alert will only be sent the 1st time an AP Group (Area) goes over the threshold\n//It has to go below the threshold and over again for another EMail alert to be sent\n if (flow.get(\"apgroupSelection[\"+msg.loopCounter+\"].alert\") == false) {\n    flow.set(\"apgroupSelection[\"+msg.loopCounter+\"].alert\", true); //Set flag that EMail Alert sent and prevent another one sent until crosses threshold again\n\n//Define EMail alert content data and forward to EMail Alert send node\n//Define a new msg variable as its best practice not to write over the received msg.payload    \n    var msg3 = {};\n    msg3.payload = {\"alertapgroupName\": msg.area.toUpperCase(), \"alertapgroupdeviceNum\": msg.payload.totalCount, \"alertapgroupThreshold\": msg.threshold};\n    node.send([null, null, msg3, null, null, null]); \n    node.done();   \n    }\n}\n\n//Set the outbound msg2.area AP Group (Area) Name to be uppercase for display in the per Area Display\nmsg2.area = msg.area.toUpperCase();\n\n//PER AREA ACCESS INFORMATION DISPLAYS\n//Send Info to correct Area ui_Template node for display in the respective per Area Access Information Displays\n//The apgroupNameIndex is always lower case, so using .toLowerCase() function just in case differnet case used in SZ AP Group Name\nif (msg.id === \"CONFERENCING\".toLowerCase()) {\n\tnode.send([null, null, null, msg2, null, null]); \n\tnode.done();\n}\nif (msg.id === \"RESTAURANT\".toLowerCase()) {\n\tnode.send([null, null, null, null, msg2, null]); \n\tnode.done();\t\n}\nif (msg.id === \"BAR\".toLowerCase()) {\n\tnode.send([null, null, null, null, null, msg2]); \n\tnode.done();\t\n}\n\n//Add or Update data in the Area Capacity Table\n//1) The \"id\" which is the current AP Group (Area) is used to define each row (i.e. index) in the Area Capacity table \n//2) SZ http repsonses may arrive back asynchronously so also using msg.area payload set in the\n//\"Periodically update Device Density Table\" node to make sure that the returned AP Group client count is for that area\nvar msg4 = {}\nmsg4.payload = {\n    command: \"updateOrAddData\",\n        arguments: [[\n            {\n                \"id\": msg.id,\n                \"apgroupName\": msg.area,\n                \"apgroupColour\": msg2.colour,\n                \"apgroupdeviceNum\": msg.payload.totalCount,\n                \"threshold\": msg.threshold,\n            },\n    ]],\n    returnPromise: false\n    }\nreturn [null, msg4, null, null, null, null];\n}","outputs":6,"noerr":0,"initialize":"","finalize":"","x":720,"y":1209,"wires":[["a1b3c1a5.f0b3","9cfc02f6.20b34"],["974d98d8.8d0618","7a23fd6f.b70e44"],["f022cd27.6a294"],["26c0cfb1.3ba7a"],["a1b216cb.853e58"],["7ecaa891.4bdbf8"]],"outputLabels":["Send current date & time","Send periodic updates to Area Status tables","Send message to E-MAIL node","Send data to CONFERENCING Area Display","Send data to RESTAURANT Area Display","Send data to BAR Area Display"]},{"id":"f9b66637.fdf728","type":"ui_text","z":"ef97fb1b.89a498","group":"adf183d8.301fe","order":7,"width":9,"height":1,"name":"Selected AP Group (Area) text","label":"<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size = 3><font color=#555555>Selected Area:&ensp;</font></p> </body> </html>","format":"<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size =4><font color=red>{{msg.payload.name}}</font></p> </body> </html>","layout":"row-left","x":210,"y":540,"wires":[],"info":"This has not function apart from putting  text above the WLAN / SSID list"},{"id":"cfb098ed.1acb98","type":"ui_table","z":"ef97fb1b.89a498","group":"adf183d8.301fe","name":"AP Group (Area) List Table","order":10,"width":9,"height":3,"columns":[{"field":"name","title":"Hotel Areas","width":"","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}}],"outputs":1,"cts":true,"x":200,"y":580,"wires":[["f9b66637.fdf728","b6a110b3.f8c79","b2e28ce1.007d9"]]},{"id":"5631cffc.d4f49","type":"ui_table","z":"ef97fb1b.89a498","group":"adf183d8.301fe","name":"Selected AP Group Health","order":11,"width":8,"height":2,"columns":[{"field":"onlineCount","title":"Online","width":"","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}},{"field":"flaggedCount","title":"Flagged","width":"","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}},{"field":"offlineCount","title":"Offline","width":"","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}}],"outputs":0,"cts":false,"x":1710,"y":580,"wires":[]},{"id":"d4a10941.9fc808","type":"ui_table","z":"ef97fb1b.89a498","group":"adf183d8.301fe","name":"AP Zones List Table","order":9,"width":8,"height":3,"columns":[{"field":"name","title":"AP Zones","width":"","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}}],"outputs":1,"cts":true,"x":1020,"y":400,"wires":[["16e30fff.1d4c8","7d4943d7.2dfabc"]]},{"id":"16e30fff.1d4c8","type":"ui_text","z":"ef97fb1b.89a498","group":"adf183d8.301fe","order":6,"width":8,"height":1,"name":"Selected AP Zone text","label":"<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size = 3><font color=#555555>Selected AP Zone:&ensp;</font></p> </body> </html>","format":"<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size =4><font color=red>{{msg.payload.name}}</font></p> </body> </html>","layout":"row-left","x":1020,"y":440,"wires":[],"info":"This has not function apart from putting  text above the AP Zone list"},{"id":"ff979ac7.25c718","type":"ui_slider","z":"ef97fb1b.89a498","name":"Threshold Select Slider","label":"","tooltip":"If no Area is selected the slider will return to 0","group":"adf183d8.301fe","order":18,"width":17,"height":1,"passthru":true,"outs":"end","topic":"","topicType":"str","min":"0","max":"50","step":"5","x":190,"y":714,"wires":[["6955993.d032168"]]},{"id":"ffb3a04d.f33d","type":"ui_button","z":"ef97fb1b.89a498","name":"Clear & Refresh Tables & Data","group":"adf183d8.301fe","order":3,"width":9,"height":1,"passthru":true,"label":" &nbspClear all Tables and Refresh Data","tooltip":"Refresh the AP Zone/Group list, reset existing selections, clear Zone/WLAN lists and charts.","color":"Red","bgcolor":"#EAEAEA","icon":"fa-trash-o","payload":"<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><link></head><body><center>Clicking <B>OK</B> will clear all current Area and Capacity settings in the Area Capacity Status table.<BR>If you wish to save the current configuration then select <B>Cancel</B> and use the <B>SAVE CONFIGURATION</B> option first.</body></html>","payloadType":"str","topic":"","topicType":"str","x":410,"y":300,"wires":[["bf86d4ac.848ab8","23764aa6.19a986"]]},{"id":"6a22d169.16606","type":"http request","z":"ef97fb1b.89a498","name":"http post","method":"POST","ret":"obj","paytoqs":false,"url":"","tls":"d8d96dbf.ae322","persist":false,"proxy":"","authType":"","x":980,"y":798,"wires":[["538010fe.df7d"]]},{"id":"6fe5fc92.77ace4","type":"ui_toast","z":"ef97fb1b.89a498","position":"dialog","displayTime":"3","highlight":"","sendall":false,"outputs":1,"ok":"OK","cancel":"Cancel","raw":true,"topic":"","name":"Set new threshold for Area","x":430,"y":796,"wires":[["ce83b333.cf365"]]},{"id":"83a4778c.be98d8","type":"http request","z":"ef97fb1b.89a498","name":"http post","method":"POST","ret":"obj","paytoqs":false,"url":"","tls":"d8d96dbf.ae322","persist":false,"proxy":"","authType":"","x":443,"y":1208,"wires":[["f33a0a98.21c3e8"]]},{"id":"b6a110b3.f8c79","type":"function","z":"ef97fb1b.89a498","name":"Set New Flow Vars for selected AP Group","func":"flow.set(\"apgroupID\", msg.payload.id);// SZ AP Group ID\nflow.set(\"apgroupName\", msg.payload.name); //SZ AP group Name which is symbolically the Area Name\nreturn;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":520,"y":620,"wires":[["ff979ac7.25c718"]]},{"id":"b2e28ce1.007d9","type":"function","z":"ef97fb1b.89a498","name":"Get AP Group Health Status","func":"msg.url = flow.get(\"szAddress\").concat(\"/wsg/api/public/v9_1/health/status/ap?serviceTicket=\");\nmsg.url = msg.url.concat(flow.get(\"serviceTicket\"));\n\nmsg.headers = {};\n    msg.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"vSZSessionCookie\");\nmsg.topic = \"apHealth\"\nmsg.payload = {\n    \"filters\":\n        [{\"type\":\"APGROUP\",\"value\":flow.get(\"apgroupID\")}],\n\t    //\"extraFilters\":[{\"type\":\"GROUP\",\"value\":flow.get(\"apgroupID\")}],\n\t    \"extraNotFilters\":[{\"type\":\"MONITORINGENABLED\",\"value\":\"true\"}],\n\t\t\"options\":{},\n\t    \"limit\":10,\n\t    \"page\":1\n}\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":820,"y":580,"wires":[["fc93e71f.0a8ab8"]]},{"id":"25b003a7.95b57c","type":"function","z":"ef97fb1b.89a498","name":"Send AP Group Info","func":"\n//Send the list of AP Groups for the selected AP Zone to the list box\nmsg.payload = msg.payload.list;\nnode.send([msg]);\n\n//Now set the WLAN / SSID list sort order by WLAN Name (mane key) after 300ms to allow table to be populated first\nsetTimeout(function(){\n        msg.payload = {\n        \"command\":\"setSort\",\n        \"arguments\":[\n    [{\n\t\t\"column\":\"name\",\"dir\":\"asc\"\n\t},]\n    ],\n}\nnode.send([msg]);\n},300);\nreturn","outputs":1,"noerr":0,"initialize":"","finalize":"","x":1720,"y":400,"wires":[["cfb098ed.1acb98"]]},{"id":"e843d230.d5078","type":"function","z":"ef97fb1b.89a498","name":"Send AP Health","func":"if(msg.topic === \"apHealth\"){\nflow.set(\"apOnline\", msg.payload.onlineCount);\nflow.set(\"apFlagged\", msg.payload.flaggedCount);\nflow.set(\"apOffline\", msg.payload.offlineCount);\n}\n\nflow.set(\"zoneStatus\", [{\"onlineCount\": flow.get(\"apOnline\"), \"flaggedCount\": flow.get(\"apFlagged\"),\"offlineCount\": flow.get(\"apOffline\")}]);\n\n\nmsg.payload = flow.get(\"zoneStatus\");\n\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":1360,"y":580,"wires":[["5631cffc.d4f49"]]},{"id":"7d4943d7.2dfabc","type":"function","z":"ef97fb1b.89a498","name":"Get AP Groups","func":"var url = flow.get(\"szAddress\") + \"/wsg/api/public/v9_1/rkszones/\" + msg.payload.id + \"/apgroups?serviceTicket=\";\nmsg.url = url.concat(flow.get(\"serviceTicket\"));\n\nmsg.headers = {};\n    msg.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"VsZSessionCookie\");\n\n//Read the AP groups of the Zone clicked in the Zone table\n//msg.payload.id contains the Zone ID to use in the request\n    flow.set(\"zoneID\", msg.payload.id);\n    flow.set(\"zoneName\", msg.payload.name);\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":1240,"y":400,"wires":[["98255093.0f956"]]},{"id":"7bf20c86.834d84","type":"function","z":"ef97fb1b.89a498","name":"Send AP Zone Info","func":"//Check if returned AP Zone = 0 and if so send text reflecting this in the list box\nif (msg.payload.totalCount === 0) {\n    var noAPzones = [{\"name\": \"No AP Zones in the selected Domain\"}];\n    msg.topic = \"noAPzones\"\n    msg.payload = noAPzones;\n    node.send(msg);\n}\n//Else send the list of AP Zones for the selected Domain to the list box\nelse {\n    msg.payload = msg.payload.list;\n}\nnode.send([msg]);\n\n//Then set AP Zone list sort order by Name after 300ms to allow table to be populated first\nsetTimeout(function(){\n    msg.payload = {\n        \"command\":\"setSort\",\n    \"arguments\":[\n\t\t[{\n\t\t\t\"column\":\"name\",\"dir\":\"asc\"\n\t\t},]\n\t],\n}\nnode.send([msg]);\n\t},300);\nreturn","outputs":1,"noerr":0,"x":1450,"y":300,"wires":[["d4a10941.9fc808"]]},{"id":"6955993.d032168","type":"function","z":"ef97fb1b.89a498","name":"Set Threshold","func":"if(msg.topic == \"Refresh&Clear\"){\nreturn;\n}\n\n//Set threshold slider to 0 if no AP group (Area) selected\nif(flow.get(\"apgroupName\") == null){\nmsg.payload = 0;\nreturn([msg,null]);\n}\n\n//Set the flow variable threshold to be the threshold slider value\nflow.set(\"threshold\",msg.payload);\n\n//Popup confirmation dialogue box that the threshold it to be set selected AP Group (Area)\nif(flow.get(\"threshold\") > 0){\nmsg.payload = '<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><link></head><script></script><body>Set a Threshold of <B> '+flow.get(\"threshold\")+' </B> for the <B>'+flow.get(\"apgroupName\")+'</B> Area.</body></html>';\nreturn [null,msg];\n}\n\nelse {\n//Popup confirmation dialogue box that the selected AP Group (Area) will be deleted from the table and array data\nmsg.payload = '<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><link></head><script></script><body><font color=red>**WARNING**</font color> a Threshold of <B>0</B> will Delete the <B>'+flow.get(\"apgroupName\")+'</B> Area from the Area Device Density table. </body></html>';\nreturn [null,msg];\n}","outputs":2,"noerr":0,"initialize":"","finalize":"","x":160,"y":789,"wires":[["ff979ac7.25c718"],["6fe5fc92.77ace4"]],"outputLabels":["Send clear to Threshold input field","Send new Threshold"]},{"id":"bf86d4ac.848ab8","type":"function","z":"ef97fb1b.89a498","name":"Get AP Zones","func":"//Read the AP Zones of the SZ Controller\nvar url = flow.get(\"szAddress\") + \"/wsg/api/public/v9_1/rkszones?&serviceTicket=\";\nmsg.url = url.concat(flow.get(\"serviceTicket\"));\n\nmsg.headers = {};\n    msg.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"VsZSessionCookie\");\n\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":920,"y":300,"wires":[["3e8733e0.ce58bc"]]},{"id":"b0962134.c0658","type":"inject","z":"ef97fb1b.89a498","name":"","props":[{"p":"payload"}],"repeat":"","crontab":"","once":true,"onceDelay":"3","topic":"","payload":"","payloadType":"date","x":130,"y":300,"wires":[["add56a86.73bb38","7666d477.a8fe4c"]]},{"id":"88ffbfa1.3e746","type":"function","z":"ef97fb1b.89a498","name":"Update Area Capacity Table","func":"//When AP Groups (Areas) are selected and added to or removed from the Area Capacity table they are recorded in the \n//flow array apgroupSelection / context variable array apgroupcontextSelection for tracking, along with the the Group ID\n\n//This node periodically updates the Area Capacity table based on the currently selected AP Groups (Areas) in flow array apgroupSelection\n\n//Load the current flow context array data into a local the context data array and check if length = 0\n//If it is 0 (no entries in the array) then exit as no update required\n//The var arrayLength is used subsequently if there is data in the array as to know how many loops of sending data are required\nvar apgroupSelection = flow.get(\"apgroupSelection\");\nvar arrayLength = apgroupSelection.length;\nif (arrayLength === 0){\nreturn;\n}\n\nelse \n{   \n    var msg1 = {}\n    msg1.url = flow.get(\"szAddress\").concat(\"/wsg/api/public/v9_1/query/client?serviceTicket=\");\n    msg1.url = msg1.url.concat(flow.get(\"serviceTicket\"));\n\n    msg1.headers = {};\n    msg1.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg1.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"vSZSessionCookie\");\n//Loop through routine and send a POST to update the Device Density table for every AP group (Area) in the array\n    for(loopCounter = 0; loopCounter < arrayLength; loopCounter++) {\n//Set an Area message identifier so if HTTP POST responses are received asynchronously they can be ordered correctly\n// in the Device Density Table\n    msg1.loopCounter = loopCounter; //This is used by the \"Send  Updated AP Group Info\" node to know which index in the array is currently being processed\n    msg1.id = apgroupSelection[loopCounter].id //lower-case AP Group (Area) used to notify the \"Send  Updated AP Group Info\" node which Area the data is for\n    msg1.area = apgroupSelection[loopCounter].apgroupName; //AP Group name in same case as confogured in the SZ\n    msg1.threshold = apgroupSelection[loopCounter].threshold;\n    msg1.alert = apgroupSelection[loopCounter].alert;\n\n//Get the client details for the selected AP group. The Limit is set to 1 as not interested in returning\n//all of the connected clients details, only the total clients per AP Group (Area)\n    msg1.payload = {\n        \"filters\":\n\t\t    [{\"type\": \"APGROUP\",\"value\": apgroupSelection[loopCounter].groupId}],\n\t    \"limit\": 1,\n\t    \"page\": 1\n        }\n    node.send(msg1);\n    node.done();\n    } \n}\nreturn;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":180,"y":1208,"wires":[["83a4778c.be98d8"]]},{"id":"fc93e71f.0a8ab8","type":"http request","z":"ef97fb1b.89a498","name":"http post","method":"POST","ret":"obj","paytoqs":"ignore","url":"","tls":"d8d96dbf.ae322","persist":false,"proxy":"","authType":"","x":1100,"y":580,"wires":[["e843d230.d5078"]]},{"id":"98255093.0f956","type":"http request","z":"ef97fb1b.89a498","name":"http get","method":"GET","ret":"obj","paytoqs":"ignore","url":"","tls":"d8d96dbf.ae322","persist":false,"proxy":"","authType":"","x":1460,"y":400,"wires":[["25b003a7.95b57c"]]},{"id":"3e8733e0.ce58bc","type":"http request","z":"ef97fb1b.89a498","name":"http get","method":"GET","ret":"obj","paytoqs":"ignore","url":"","tls":"d8d96dbf.ae322","persist":false,"proxy":"","authType":"","x":1200,"y":300,"wires":[["7bf20c86.834d84"]]},{"id":"465f600f.23f86","type":"inject","z":"ef97fb1b.89a498","name":"Periodic Density Table Update - 15 seconds","props":[{"p":"payload"}],"repeat":"15","crontab":"","once":false,"onceDelay":"2","topic":"","payload":"","payloadType":"date","x":230,"y":1100,"wires":[["88ffbfa1.3e746","f33a0a98.21c3e8","d7553854.898d08"]],"outputLabels":["The link direct to \"Send Updated AP Group Info\" is for time updates only"]},{"id":"4ab45b46.cd6f24","type":"ui_button","z":"ef97fb1b.89a498","name":"","group":"adf183d8.301fe","order":4,"width":4,"height":1,"passthru":false,"label":"&nbspSave Configuration","tooltip":"This will Save the selected Area & Capacity Status table data to the server file \"/home/ruckus/Area_Density_Settings.json\"","color":"#0000FF","bgcolor":"#EAEAEA","icon":"fa-upload","payload":"<!DOCTYPE html><html lang=\"en\"><head></head><body><font color=red>**WARNING**</font color> Saving the currently selected Area & Capacity Status table configuration will over-write the existing saved configuration.</BR> </body></html>","payloadType":"str","topic":"","topicType":"str","x":150,"y":960,"wires":[["5a25b0e3.ed6b8"]]},{"id":"99fc74d2.ee7c78","type":"ui_button","z":"ef97fb1b.89a498","name":"","group":"adf183d8.301fe","order":5,"width":4,"height":1,"passthru":false,"label":"&nbspRestore Configuration","tooltip":"This will Restore the last saved Area & Capacity Status table data from the server file \"/home/ruckus/Area_Density_Settings.json\"","color":"#9900CC","bgcolor":"#EAEAEA","icon":"fa-download","payload":"<!DOCTYPE html><html lang=\"en\"><head></head><body><font color=red>**WARNING**</font color> Restoring the saved configuration will over-write the current selected Area & Threshold Capacity status table configurations.</BR> </body></html>","payloadType":"str","topic":"","topicType":"str","x":160,"y":1020,"wires":[["6977fb8c.33bb94"]]},{"id":"29ff1d11.1e03a2","type":"ui_toast","z":"ef97fb1b.89a498","position":"bottom right","displayTime":"7","highlight":"Red","sendall":false,"outputs":0,"ok":"OK","cancel":"","raw":false,"topic":"","name":"Data Exported to File","x":1720,"y":960,"wires":[]},{"id":"7e4c93f5.ab8fdc","type":"function","z":"ef97fb1b.89a498","name":"Notification Text","func":"msg.payload = \"Density Area Configuration data saved to file\";\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":1360,"y":960,"wires":[["29ff1d11.1e03a2"]]},{"id":"16e7e451.9ba4bc","type":"ui_toast","z":"ef97fb1b.89a498","position":"bottom right","displayTime":"7","highlight":"Red","sendall":false,"outputs":0,"ok":"OK","cancel":"","raw":false,"topic":"","name":"Data Imported from File","x":1710,"y":1020,"wires":[]},{"id":"6977fb8c.33bb94","type":"ui_toast","z":"ef97fb1b.89a498","position":"dialog","displayTime":"3","highlight":"","sendall":false,"outputs":1,"ok":"OK","cancel":"Cancel","raw":true,"topic":"","name":"Import Warning","x":400,"y":1020,"wires":[["c10640bc.c74d6"]]},{"id":"c10640bc.c74d6","type":"function","z":"ef97fb1b.89a498","name":"Cancel?","func":"//Do not import Confiuration if Cancel selected in confirmation notification.\nif(msg.payload == \"Cancel\") {\n    return;\n}\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":580,"y":1020,"wires":[["4416fe3.7ecbe"]]},{"id":"5a25b0e3.ed6b8","type":"ui_toast","z":"ef97fb1b.89a498","position":"dialog","displayTime":"3","highlight":"","sendall":false,"outputs":1,"ok":"OK","cancel":"Cancel","raw":true,"topic":"","name":"Export Warning","x":400,"y":960,"wires":[["7deedb63.9d83e4"]]},{"id":"7deedb63.9d83e4","type":"function","z":"ef97fb1b.89a498","name":"Cancel ?","func":"//Do not import Confiuration if Cancel selected in confirmation notification.\nif(msg.payload == \"Cancel\") {\n    return;\n}\nreturn msg;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":580,"y":960,"wires":[["78c5b0cd.60ce3"]]},{"id":"1b640743.1b0799","type":"comment","z":"ef97fb1b.89a498","name":"Area Capacity Management","info":"","x":1700,"y":680,"wires":[]},{"id":"4fd61c5.c7c7ee4","type":"comment","z":"ef97fb1b.89a498","name":"Add/Update/Delete selected AP Group (Area) data","info":"","x":790,"y":740,"wires":[]},{"id":"d8caf8d.dd5fc08","type":"comment","z":"ef97fb1b.89a498","name":"Periodically Update AP Group (Area) data","info":"","x":260,"y":1160,"wires":[]},{"id":"cba292c8.4973e","type":"ui_toast","z":"ef97fb1b.89a498","position":"dialog","displayTime":"3","highlight":"","sendall":false,"outputs":1,"ok":"OK","cancel":"","raw":true,"topic":"","name":"Can't set a threshold of 0","x":990,"y":860,"wires":[[]],"info":"If the selected AP Group (Area) doesn't already exist in the Area Device Density  table then you can't set a threshold of 0 as that speciifes to delete the Area for the table and array"},{"id":"7a23fd6f.b70e44","type":"ui_table","z":"ef97fb1b.89a498","group":"fce942e1.af918","name":"Monitor - Area Capacity Status Table","order":2,"width":18,"height":12,"columns":[{"field":"id","title":"Hidden_Index","width":"","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}},{"field":"apgroupName","title":"Hotel Area","width":"50%","align":"left","formatter":"plaintext","formatterParams":{"target":"_blank"}},{"field":"apgroupColour","title":"<center>Capacity Status Indication</center>","width":"50%","align":"left","formatter":"color","formatterParams":{"target":"_blank"}}],"outputs":0,"cts":false,"x":1670,"y":900,"wires":[]},{"id":"9cfc02f6.20b34","type":"ui_text","z":"ef97fb1b.89a498","group":"fce942e1.af918","order":1,"width":18,"height":2,"name":"Monitor - Area Capacity Status Table Text","label":"<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size = 5><font color=black><center><B>Area Capacity Monitoring Dashboard</B><font size = 3><BR><font color=grey>Auto-updated every 15 seconds.&emsp;Last updated on: {{msg.dateTime}}<BR><font color=#696969><B>GREY<font color=black></B> - Area Status Undetermined&emsp;|&emsp;<font color=Green><B>GREEN<font color=black></B> - Area is BELOW advised capacity&emsp;|&emsp;<font color=Red><B>RED<font color=black></B> - Area is AT or ABOVE advised capacity</center></font></p> </body> </html>","format":"","layout":"row-center","x":1660,"y":860,"wires":[],"info":"This has not function apart from putting  text above the WLAN / SSID list"},{"id":"26c0cfb1.3ba7a","type":"ui_template","z":"ef97fb1b.89a498","group":"e62e0868.78e328","name":"CONFERENCING Area Access Info Display Template","order":1,"width":28,"height":"13","format":"<!DOCTYPE html>\n<html lang=\"en\">\n\n<head>\n<meta name=\"description\" content=\"Area Capacity Monitoring\">\n<meta name=\"author\" content=\"Eddie Felmer\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n\n<style>\n/* Style the body */\nbody {\n    font-family: Arial;\n    margin: 0px;\n}\n/* Style the paragraph text */\np.normal {\n    padding: 10px;\n    text-align: center;\n    font-size: 40px;\n}\n\n/* Create a glow around the FA icon */\n.glow {\n    display: block;\n    margin: 70px;\n    width 70%;\n    color: {{msg.colour}};\n    text-shadow: 0 0 80px {{msg.colour}};\n    text-align: center;\n    color:{{msg.colour}};\n    font-size: 200px;\n}\n\n/* Style the Hands, Face, Space Image and Last Updated Time */\n.grid-container {\n    display: grid;\n    grid-template-columns: auto auto auto;\n    background-color: white;\n    padding: 0px;\n}\n.grid-image {\n    background-color: white;\n    padding: 0px;\n    text-align: center;\n    margin-left:90px;\n}\n.grid-text {\n    background-color: white;\n    padding: 0px;\n    font-size: 15px;\n    text-align: right;\n    margin-right: 20px;\n    margin-top: 82px;\n    color: grey;\n}\n\n/* Style the Footer */\n.footer\n{\n    display: grid;\n    grid-template-columns: auto auto auto;\n    background-color: #0094ce;\n    height:50px;\n\twidth: 100%;\n\tposition:fixed;\n    bottom:0;\n    left:0;\n}\n.footer-text {\n    background-color: #0094ce;\n    color: white;\n    font-size: 15px;\n    text-align: left;\n    margin-top: 15px;\n    margin-left: 20px;\n}\n.footer-image {\n    background-color: #0094ce;\n    margin-top: 9px;\n    position:fixed;\n    left: 50%; \n    margin-left: -100px; \n}\n</style>\n\n</head>\n<body>\n\n<!-- Display top area info text -->\n<div class=\"body\">\n    <p class=\"normal\"><b>{{msg.area}}</b> Area Access Guidance</p>\n    <p class=\"normal\"><font color = {{msg.colour}}><b>{{msg.message}}</b></font></p>\n</div>\n\n<!-- Display status icon -->\n<div>\n    <i class=\"fa fa-{{msg.fa_icon}} glow\"></i>\n</div>\n\n<!-- Display Hands, Face, Space image & Last Updated status -->\n<div class=\"grid-container\">\n    <div class=\"grid-image\"></div>\n    <div class=\"grid-image\"><img src=\"/HFS_NR_Blue.png\" alt=\"Hands, Face, Space Logo\" width = 500px></div>\n    <div class=\"grid-text\">Area Status Last Updated:<BR>{{msg.dateTime}}</div>  \n</div>\n\n<!-- Display page Footer -->\n<div class=\"footer\">\n    <div class=\"footer-text\">&copy; Ruckus Networks 2021</div>\n    <div class=\"footer-image\"><img src=\"/Ruckus_White.png\" alt=\"Ruckus Logo\" width = 200px></div>\n</div>\n\n</body>\n</html>","storeOutMessages":false,"fwdInMessages":false,"resendOnRefresh":false,"templateScope":"local","x":1620,"y":1260,"wires":[[]]},{"id":"a1b216cb.853e58","type":"ui_template","z":"ef97fb1b.89a498","group":"79e5669f.41d1d8","name":"RESTAURANT Area Access Info Display  Template","order":1,"width":28,"height":"13","format":"<!DOCTYPE html>\n<html lang=\"en\">\n\n<head>\n<meta name=\"description\" content=\"Area Capacity Monitoring\">\n<meta name=\"author\" content=\"Eddie Felmer\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n\n<style>\n/* Style the body */\nbody {\n    font-family: Arial;\n    margin: 0px;\n}\n/* Style the paragraph text */\np.normal {\n    padding: 10px;\n    text-align: center;\n    font-size: 40px;\n}\n\n/* Create a glow around the FA icon */\n.glow {\n    display: block;\n    margin: 70px;\n    width 70%;\n    color: {{msg.colour}};\n    text-shadow: 0 0 80px {{msg.colour}};\n    text-align: center;\n    color:{{msg.colour}};\n    font-size: 200px;\n}\n\n/* Style the Hands, Face, Space Image and Last Updated Time */\n.grid-container {\n    display: grid;\n    grid-template-columns: auto auto auto;\n    background-color: white;\n    padding: 0px;\n}\n.grid-image {\n    background-color: white;\n    padding: 0px;\n    text-align: center;\n    margin-left:90px;\n}\n.grid-text {\n    background-color: white;\n    padding: 0px;\n    font-size: 15px;\n    text-align: right;\n    margin-right: 20px;\n    margin-top: 82px;\n    color: grey;\n}\n\n/* Style the Footer */\n.footer\n{\n    display: grid;\n    grid-template-columns: auto auto auto;\n    background-color: #0094ce;\n    height:50px;\n\twidth: 100%;\n\tposition:fixed;\n    bottom:0;\n    left:0;\n}\n.footer-text {\n    background-color: #0094ce;\n    color: white;\n    font-size: 15px;\n    text-align: left;\n    margin-top: 15px;\n    margin-left: 20px;\n}\n.footer-image {\n    background-color: #0094ce;\n    margin-top: 9px;\n    position:fixed;\n    left: 50%; \n    margin-left: -100px; \n}\n</style>\n\n</head>\n<body>\n\n<!-- Display top area info text -->\n<div class=\"body\">\n    <p class=\"normal\"><b>{{msg.area}}</b> Area Access Guidance</p>\n    <p class=\"normal\"><font color = {{msg.colour}}><b>{{msg.message}}</b></font></p>\n</div>\n\n<!-- Display status icon -->\n<div>\n    <i class=\"fa fa-{{msg.fa_icon}} glow\"></i>\n</div>\n\n<!-- Display Hands, Face, Space image & Last Updated status -->\n<div class=\"grid-container\">\n    <div class=\"grid-image\"></div>\n    <div class=\"grid-image\"><img src=\"/HFS_NR_Blue.png\" alt=\"Hands, Face, Space Logo\" width = 500px></div>\n    <div class=\"grid-text\">Area Status Last Updated:<BR>{{msg.dateTime}}</div>  \n</div>\n\n<!-- Display page Footer -->\n<div class=\"footer\">\n    <div class=\"footer-text\">&copy; Ruckus Networks 2021</div>\n    <div class=\"footer-image\"><img src=\"/Ruckus_White.png\" alt=\"Ruckus Logo\" width = 200px></div>\n</div>\n\n</body>\n</html>","storeOutMessages":false,"fwdInMessages":false,"resendOnRefresh":false,"templateScope":"local","x":1630,"y":1300,"wires":[[]]},{"id":"7666d477.a8fe4c","type":"ui_button","z":"ef97fb1b.89a498","name":"Refresh only AP Zones list","group":"adf183d8.301fe","order":2,"width":8,"height":1,"passthru":true,"label":" &nbspRefresh AP Zones","tooltip":"Refresh only the AP Zone list if the list is empty, or needs updating.","color":"#00B251","bgcolor":"#EAEAEA","icon":"fa-refresh","payload":"","payloadType":"date","topic":"","topicType":"str","x":420,"y":260,"wires":[["bf86d4ac.848ab8"]]},{"id":"42b8d6d1.fc68e8","type":"ui_template","z":"ef97fb1b.89a498","group":"feabd600.f71b28","name":"Logo in NR Title Bar","order":0,"width":0,"height":0,"format":"<style>\n/* Set Logo position and size */\n/* Path to logo images is configured in Node-Red startup file settings.js */\n.md-toolbar-tools{\n    background-image: url(\"/Your_Logo_Here_1.png\");\n    background-repeat: no-repeat;\n    background-size: 283px 48px;\n    background-position: center;\n}\n</style>","storeOutMessages":true,"fwdInMessages":true,"resendOnRefresh":false,"templateScope":"global","x":140,"y":240,"wires":[[]]},{"id":"23764aa6.19a986","type":"ui_toast","z":"ef97fb1b.89a498","position":"dialog","displayTime":"3","highlight":"","sendall":false,"outputs":1,"ok":"OK","cancel":"Cancel","raw":true,"topic":"","name":"Confirm Refresh & Clear","x":690,"y":340,"wires":[["add56a86.73bb38","bf86d4ac.848ab8"]]},{"id":"d7553854.898d08","type":"ui_switch","z":"ef97fb1b.89a498","name":"Enable/Disable Auto-Sort","label":"Auto-Sort Area Capacity Status tables by Status Colour","tooltip":"When Enabled the Area Capacity Status tables will be sorted in order of Colour Status every periodic update interval.","group":"adf183d8.301fe","order":21,"width":9,"height":1,"passthru":true,"decouple":"false","topic":"topic","topicType":"msg","style":"","onvalue":"true","onvalueType":"bool","onicon":"","oncolor":"","offvalue":"false","offvalueType":"bool","officon":"","offcolor":"","animate":false,"x":579,"y":1100,"wires":[["9797e44a.4f63a8"]]},{"id":"9797e44a.4f63a8","type":"function","z":"ef97fb1b.89a498","name":"Enable/Disable Auto-Sort","func":"//Check if switch state is True (Enabled or false (Disabled). If Disabled return with no action.\nif (msg.payload === true) {\n//Set the Area Capacity tables sort order in Descending on Capcity Status Colour\nmsg.payload = {\n        \"command\":\"setSort\",\n    \"arguments\":[\n\t\t[{\n\t\t\t\"column\":\"apgroupColour\",\"dir\":\"desc\"\n\t\t},]\n\t],\n}\n//Wait for 1.5 seconds before sorting tabel so Area updates have completed\nsetTimeout(function(){\nnode.send(msg);\nnode.done();\n    },1500);  \n}\nreturn;","outputs":1,"noerr":0,"initialize":"","finalize":"","x":833,"y":1100,"wires":[["974d98d8.8d0618","7a23fd6f.b70e44"]]},{"id":"5df7f7a5.842328","type":"comment","z":"ef97fb1b.89a498","name":"** Read-Me for Instructions on adding new per Area Access Information Displays **","info":"This is an example of how to add a new Area Access Information Display Template for the Area \"Gym\".\n\nIf you simply want to change the name of an existing Area Name then change it in the nodes \"Send Selected AP Group Info\" & \"Send Updated AP Group Info\" under the section \"//PER AREA ACCESS INFORMATION DISPLAYS\". The new Area Name MUST MATCH the name of the AP Group (Area) in your SZ. \n\n1. Select an existing \"<Area Name> Area Access Info Display Template\" node, Copy (Ctrl+C) & Paste (Ctrl+V) it into the workflow.\n\n2. Edit the new Template node & update its \"Name\" field to reflect the SZ AP Group (Area) Name you are adding i.e. \"GYM Area Access Info Display Template\"\n\n2a. Under the Group field drop-down select \"Add new ui_group\" then click the pencil to edit its properties:\n- Set the name to reflect the new Area you are adding i.e. \"GYM Area Display\"\n- Set the \"Width\" field to be 28\n- Uncheck \"Display Group name\"\n- In the \"Tab\" field drop-down select \"Add a new ui_tab\", edit that & set the name also to be \"GYM Area Display\"\n- In the \"Icon\" field you can enter the name of an Icon to be shown in the Dashboard menu that represents the Area type from one of the 3 sources indicated in the yellow information text box (Font Awesome, Material Design, Google Material Icons)\n\n2b. Click Add, then Add again, then in this page check that the Size is 28 x 13 and click Done\n\n3. In both the function nodes \"Send Selected AP Group Info\" & \"Send Updated AP Group Info\" perform the following: \n\n3a. Add an additional \"Outputs\" for the new Area & under the Appearance option (icon top right of the page) add a descriptive Outputs label in the format \"Send data to GYM Area Display\"\n\n3b. In both function nodes under the section \"//PER AREA ACCESS INFORMATION DISPLAYS\" add the code snippet below, making sure you change the example Area Name \"GYM\" to be that of the new Area Name you are adding (it must match the name of the AP Group (Area) in your SZ):\n\nif (flow.get(\"apgroupnameIndex\") === \"GYM\".toLowerCase()) {\n\tnode.send([null, null, null, msg2]); \n\tnode.done();\t\n}\n\n3c. You now need CAREFULLY update ALL the send.node and return statements throughout these 2 nodes to reflect the additional Output. Note: the node \"Send Updated AP Group Info\" will always have 1 more Output than the node \"Send Selected AP Group Info\".\n\n\"Send Updated AP Group Info\" node example:\nIn the base configuration there are 5 Outputs and you can see commands like \"node.send([null, msg1, null, null, null]);\" which specify which Output to send a processed data message (msg). In this example the msg is sent out of the 2nd Output. When you add an Output you need to add an extra \", null\" to the end of every send.node and return statement to indicate the message should not be sent out of that new Output. \n\nThus the above example statement becomes: node.send([null, msg1, null, null, null, null]); \n\nThe exception to this is for the code snippet you added. You need to send the msg (msg2) out of the new Output, so it's updated statement will look like this: node.send([null, null, null, null, null, msg2]);\n\nRepeat steps 3a to 3c in the \"Send Updated AP Group Info\" node, noting that in base configuration it has 6 Outputs rather than 5\n\n4. Now make the relevant node conenctions to the Input of your new Area Access Info Display Template node i.e. in this example you connect them to the Input of the node \"GYM Area Access Info Display Template\". If in doubt, check the connections of one of the existing Area Access Info Display Template nodes\n\n4a. Connect the new Outputs from the nodes \"Send Selected AP Group Info\" & \"Send Updated AP Group Info\" to the Input of your new Area Access Info Display Template node \n\n4b. Connect Output 3 of the node \"Clear all data/set defaults\" to the input of your new Area Access Info Display Template node \n\n5. You do not need to make any changes to the HTML of your \"<Area Name> Area Access Info Display Template\" as the Area Name is picked up from the the function nodes when data is received. You may however want to change the element sizes to fit a particular Areas display resolution in the CSS - I'm no CSS/HTML expert so sorry if the fromatting is a bit sub-standard ;-)\n\n6. Deploy and test...","x":1090,"y":1300,"wires":[]},{"id":"7ecaa891.4bdbf8","type":"ui_template","z":"ef97fb1b.89a498","group":"a9dee31a.c317","name":"BAR Area Access Info Display Template","order":1,"width":28,"height":"13","format":"<!DOCTYPE html>\n<html lang=\"en\">\n\n<head>\n<meta name=\"description\" content=\"Area Capacity Monitoring\">\n<meta name=\"author\" content=\"Eddie Felmer\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n\n<style>\n/* Style the body */\nbody {\n    font-family: Arial;\n    margin: 0px;\n}\n/* Style the paragraph text */\np.normal {\n    padding: 10px;\n    text-align: center;\n    font-size: 40px;\n}\n\n/* Create a glow around the FA icon */\n.glow {\n    display: block;\n    margin: 70px;\n    width 70%;\n    color: {{msg.colour}};\n    text-shadow: 0 0 80px {{msg.colour}};\n    text-align: center;\n    color:{{msg.colour}};\n    font-size: 200px;\n}\n\n/* Style the Hands, Face, Space Image and Last Updated Time */\n.grid-container {\n    display: grid;\n    grid-template-columns: auto auto auto;\n    background-color: white;\n    padding: 0px;\n}\n.grid-image {\n    background-color: white;\n    padding: 0px;\n    text-align: center;\n    margin-left:90px;\n}\n.grid-text {\n    background-color: white;\n    padding: 0px;\n    font-size: 15px;\n    text-align: right;\n    margin-right: 20px;\n    margin-top: 82px;\n    color: grey;\n}\n\n/* Style the Footer */\n.footer\n{\n    display: grid;\n    grid-template-columns: auto auto auto;\n    background-color: #0094ce;\n    height:50px;\n\twidth: 100%;\n\tposition:fixed;\n    bottom:0;\n    left:0;\n}\n.footer-text {\n    background-color: #0094ce;\n    color: white;\n    font-size: 15px;\n    text-align: left;\n    margin-top: 15px;\n    margin-left: 20px;\n}\n.footer-image {\n    background-color: #0094ce;\n    margin-top: 9px;\n    position:fixed;\n    left: 50%; \n    margin-left: -100px; \n}\n</style>\n\n</head>\n<body>\n\n<!-- Display top area info text -->\n<div class=\"body\">\n    <p class=\"normal\"><b>{{msg.area}}</b> Area Access Guidance</p>\n    <p class=\"normal\"><font color = {{msg.colour}}><b>{{msg.message}}</b></font></p>\n</div>\n\n<!-- Display status icon -->\n<div>\n    <i class=\"fa fa-{{msg.fa_icon}} glow\"></i>\n</div>\n\n<!-- Display Hands, Face, Space image & Last Updated status -->\n<div class=\"grid-container\">\n    <div class=\"grid-image\"></div>\n    <div class=\"grid-image\"><img src=\"/HFS_NR_Blue.png\" alt=\"Hands, Face, Space Logo\" width = 500px></div>\n    <div class=\"grid-text\">Area Status Last Updated:<BR>{{msg.dateTime}}</div>  \n</div>\n\n<!-- Display page Footer -->\n<div class=\"footer\">\n    <div class=\"footer-text\">&copy; Ruckus Networks 2021</div>\n    <div class=\"footer-image\"><img src=\"/Ruckus_White.png\" alt=\"Ruckus Logo\" width = 200px></div>\n</div>\n\n</body>\n</html>","storeOutMessages":false,"fwdInMessages":false,"resendOnRefresh":false,"templateScope":"local","x":1660,"y":1340,"wires":[[]]},{"id":"d24b5f0e.659ec","type":"comment","z":"ef97fb1b.89a498","name":"Per Area Access Information Displays","info":"","x":1670,"y":1220,"wires":[]},{"id":"4664b705.1a80e8","type":"comment","z":"ef97fb1b.89a498","name":"Area Capacity Montoring table","info":"","x":1700,"y":820,"wires":[]},{"id":"b9adce38.9a46c","type":"http request","z":"ef97fb1b.89a498","name":"SMS","method":"POST","ret":"txt","paytoqs":true,"url":"","tls":"","proxy":"","authType":"","x":1770,"y":1147,"wires":[[]]},{"id":"d8d96dbf.ae322","type":"tls-config","name":"","cert":"","key":"","ca":"","certname":"","keyname":"","caname":"","verifyservercert":false},{"id":"1b375f38.3b6b71","type":"tls-config","name":"","cert":"","key":"","ca":"","certname":"","keyname":"","caname":"","verifyservercert":false},{"id":"adf183d8.301fe","type":"ui_group","name":"Area Capacity Management","tab":"4d0fb10b.dc338","order":1,"disp":false,"width":25,"collapse":false},{"id":"fce942e1.af918","type":"ui_group","name":"Area Capacity Monitoring","tab":"73dfff1b.02cbb","order":1,"disp":false,"width":"18","collapse":false},{"id":"e62e0868.78e328","type":"ui_group","name":"CONFERENCING Area Display","tab":"e5683382.fc5d4","order":1,"disp":false,"width":"28","collapse":false},{"id":"79e5669f.41d1d8","type":"ui_group","name":"RESTAURANT Area Display","tab":"fe6624b2.a175e8","order":1,"disp":false,"width":"28","collapse":false},{"id":"feabd600.f71b28","type":"ui_group","name":"Logo","tab":"fb98fdb9.b193a","order":1,"disp":false,"width":"24","collapse":false},{"id":"a9dee31a.c317","type":"ui_group","name":"BAR Area Display","tab":"b10e1e0b.b6d71","order":1,"disp":false,"width":"28","collapse":false},{"id":"4d0fb10b.dc338","type":"ui_tab","name":"Area Capacity Management","icon":"mi-settings","order":1,"disabled":false,"hidden":false},{"id":"73dfff1b.02cbb","type":"ui_tab","name":"Area Capacity Monitoring","icon":"mi-traffic","order":2,"disabled":false,"hidden":false},{"id":"e5683382.fc5d4","type":"ui_tab","name":"CONFERENCING Area Display","icon":"mi-groups","order":4,"disabled":false,"hidden":false},{"id":"fe6624b2.a175e8","type":"ui_tab","name":"RESTAURANT Area Display","icon":"mi-restaurant","order":5,"disabled":false,"hidden":false},{"id":"fb98fdb9.b193a","type":"ui_tab","name":"Header Logo","icon":"dashboard","order":3,"disabled":false,"hidden":false},{"id":"b10e1e0b.b6d71","type":"ui_tab","name":"BAR Area Display","icon":"fa-beer","order":6,"disabled":false,"hidden":false}]
+[
+    {
+        "id": "ef97fb1b.89a498",
+        "type": "tab",
+        "label": "SZ ACM&M",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "a4c15edb.b0ce4",
+        "type": "inject",
+        "z": "ef97fb1b.89a498",
+        "name": "Settings",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "3600",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "1",
+        "topic": "",
+        "payload": "{\"System\":{\"version\":\"Version 1.28\",\"program\":\"SmartZone Area Capacity Management & Monitoring Application (ACMM)\",\"author\":\"Eddie Felmer\",\"copyright\":\"Eddie Felmer / Ruckus\",\"LocalTime\":\"en-GB\"},\"SystemPaths\":{\"SZ_IPaddress\":\"https://10.100.10.20:8443\",\"login_Name\":\"admin\",\"login_Password\":\"RuckusSZ123!\"},\"SMS\":{\"SMSServer\":\"<SMS Service URL>\",\"SMSSender\":\"Area Alert\",\"PRInumber\":\"<Primary Send To Mobile number incl. country code>\",\"SECnumber\":\"\",\"api_key\":\"<SMS Service API Key>\",\"api_secret\":\"<SMS Service API Secret>\"},\"EMAIL\":{\"EMAILServer\":\"<entered in the EMail node>\",\"EMAILPort\":\"<entered in the EMail node>\",\"EMAILAccount\":\"<entered in the EMail node>\",\"EMAILPassword\":\"<entered in the EMail node>\",\"EMAILtopic\":\"<The EMail Subject - entered in the Send EMail & SMS Alerts node>\",\"EMAILto\":\"<Primary Send To EMail address>\",\"EMAILfrom\":\"<Sent from EMail address - not always honoured>\",\"EMAILcc\":\"\"}}",
+        "payloadType": "json",
+        "x": 120,
+        "y": 80,
+        "wires": [
+            [
+                "1c665f50.df55e1"
+            ]
+        ]
+    },
+    {
+        "id": "1f5a827c.68cb8e",
+        "type": "http request",
+        "z": "ef97fb1b.89a498",
+        "name": "http POST",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "d8d96dbf.ae322",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 790,
+        "y": 80,
+        "wires": [
+            [
+                "97c8b12a.51125"
+            ]
+        ]
+    },
+    {
+        "id": "1c665f50.df55e1",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Get service ticket/set variables",
+        "func": "//Set general variables\nvar Settings = msg.payload;\nflow.set(\"Settings\", Settings);\nflow.set(\"szAddress\", Settings.SystemPaths.SZ_IPaddress);\nflow.set(\"loginName\", Settings.SystemPaths.login_Name);\nflow.set(\"loginPassword\", Settings.SystemPaths.login_Password);\nflow.set(\"appVersion\", Settings.System.version);\n\n//Get a new service token\nmsg.url = flow.get(\"szAddress\").concat(\"/wsg/api/public/v9_1/serviceTicket\");\n\nmsg.headers = {};\nmsg.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n\nmsg.payload = {\n    \"username\": flow.get(\"loginName\"),\n    \"password\": flow.get(\"loginPassword\")\n};\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 450,
+        "y": 80,
+        "wires": [
+            [
+                "1f5a827c.68cb8e"
+            ]
+        ]
+    },
+    {
+        "id": "97c8b12a.51125",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Save service ticket",
+        "func": "var response = msg.payload;\nvar responseCode = msg.statusCode\n\n//Check that SZ HTTP connection and login was succesful\n//If not send debug warning to console and debug\nif (responseCode != 200) {\n    node.warn([\"SZ connection fail with HTTP response\", responseCode]);\nreturn;\n}\n\nelse {\n    flow.set(\"vSZSessionCookie\", msg.responseCookies.JSESSIONID.value);\n    flow.set(\"serviceTicket\", response.serviceTicket);\n}\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 1150,
+        "y": 80,
+        "wires": [
+            [
+                "eeea6cd8.7e84d"
+            ]
+        ]
+    },
+    {
+        "id": "15142b3e.5fed25",
+        "type": "http request",
+        "z": "ef97fb1b.89a498",
+        "name": "http POST",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "1b375f38.3b6b71",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 1750,
+        "y": 80,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "eeea6cd8.7e84d",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Initiate Session",
+        "func": "//Open a session to SZ\nmsg.url = flow.get(\"szAddress\").concat(\"/wsg/api/public/v9_1/session\");\n\nmsg.headers = {};\n    msg.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"vSZSessionCookie\");\n\nmsg.payload = {\n    \"username\": flow.get(\"loginName\"),\n    \"password\": flow.get(\"loginPassword\"),\n    \"timeZoneUtcOffset\": \"+00:00\"\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 1440,
+        "y": 80,
+        "wires": [
+            [
+                "15142b3e.5fed25"
+            ]
+        ]
+    },
+    {
+        "id": "965748db.bc8ea8",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Get SZ System Info",
+        "func": "//API call to get SZ System Info \nmsg.url = flow.get(\"szAddress\").concat(\"/wsg/api/public/v9_1/controller?serviceTicket=\");\nmsg.url = msg.url.concat(flow.get(\"serviceTicket\"));\n\nmsg.headers = {};\n    msg.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"vSZSessionCookie\");\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 410,
+        "y": 180,
+        "wires": [
+            [
+                "1df9a3d2.a97dac"
+            ]
+        ]
+    },
+    {
+        "id": "634d2a38.7d1764",
+        "type": "ui_table",
+        "z": "ef97fb1b.89a498",
+        "group": "adf183d8.301fe",
+        "name": "SmartZone Sys Info",
+        "order": 1,
+        "width": 25,
+        "height": 1,
+        "columns": [
+            {
+                "field": "hostName",
+                "title": "SmartZone System Name",
+                "width": "",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "model",
+                "title": "Model",
+                "width": "",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "version",
+                "title": "Software Version",
+                "width": "",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "upTime",
+                "title": "Up Time",
+                "width": "",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "appVersion",
+                "title": "ACMM Application Version",
+                "width": "",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            }
+        ],
+        "outputs": 0,
+        "cts": false,
+        "x": 1720,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "1df9a3d2.a97dac",
+        "type": "http request",
+        "z": "ef97fb1b.89a498",
+        "name": "http get",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "1b375f38.3b6b71",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 780,
+        "y": 180,
+        "wires": [
+            [
+                "8ddb65e7.51cb48"
+            ]
+        ]
+    },
+    {
+        "id": "8ddb65e7.51cb48",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Set System Info",
+        "func": "var controllerVersion = (msg.payload.list[0].version);\nvar model = (msg.payload.list[0].model);\nvar hostName = (msg.payload.list[0].hostName);\n\n//Take the SZ uptime in seconds and convert to Days, Hours, Minutes\n//1. Get the SZ uptime in seconds\nvar upTimeSec = (msg.payload.list[0].uptimeInSec);\n\n//2. To work out uptime Days value take the uptime seconds and divide by 86400, then use Math.floor to round it down to nearest whole number\n//Then take the days value, multiply by it by 3600 and subract that from the inital total uptime using -= to carry over Hours and \n//Minutes left in seconds.\n//Repeat similar process to get Hours value and then again for Minute value\nvar days     = Math.floor(upTimeSec / (24*60*60));\nupTimeSec -= days    * (24*60*60);\n\nvar hours    = Math.floor(upTimeSec / (60*60));\nupTimeSec -= hours   * (60*60);\n  \nvar minutes  = Math.floor(upTimeSec / (60));\nupTimeSec -= minutes * (60);\n  \n//3. To have leading 0 when required convert the numbers to strings and use padStart() to enforce a minimum number of digits\nvar upTimeFormatted = ((0<days)?(days+\"d, \"):\"\")+hours.toString().padStart(2, '0')+\"h, \"+minutes.toString().padStart(2, '0')+\"m\";\n\nvar sysInfo = [{\"model\": model, \"hostName\": hostName, \"version\": controllerVersion, \"upTime\": upTimeFormatted, \"appVersion\": flow.get(\"appVersion\")}];\n\nmsg.payload = sysInfo;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 1140,
+        "y": 180,
+        "wires": [
+            [
+                "634d2a38.7d1764"
+            ]
+        ]
+    },
+    {
+        "id": "13410b07.b3c8f5",
+        "type": "inject",
+        "z": "ef97fb1b.89a498",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "30",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "2",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 130,
+        "y": 180,
+        "wires": [
+            [
+                "965748db.bc8ea8"
+            ]
+        ]
+    },
+    {
+        "id": "ee04fce1.4fb59",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "Get SZ service ticket and open a session to it",
+        "info": "",
+        "x": 210,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "7e6a1106.e0c6e",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "Get SZ System info every 30 seconds",
+        "info": "",
+        "x": 190,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "a81d136.d4681f",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "Populate AP Group (Area) table for selected Zone",
+        "info": "",
+        "x": 1500,
+        "y": 440,
+        "wires": []
+    },
+    {
+        "id": "659ca3e0.d76f1c",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "Selected AP Grpup (Area) AP Health status",
+        "info": "",
+        "x": 1660,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "3099d11.cadc92e",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "Populate Zone list table for selected Domain",
+        "info": "",
+        "x": 750,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "23aec0b2.57744",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "Populate AP Health Status for selected AP Group",
+        "info": "",
+        "x": 1060,
+        "y": 620,
+        "wires": []
+    },
+    {
+        "id": "b813d600.367318",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "Send Refresh & Clear Data to all Tables & Charts",
+        "info": "",
+        "x": 300,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "f022cd27.6a294",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Send EMail & SMS Alerts",
+        "func": "var Settings=flow.get(\"Settings\");\n\nif (typeof msg.payload == \"undefined\"){\n    return;\n}\nmsg1 = {};\nmsg1.to = Settings.EMAIL.EMAILto;\nmsg1.cc = Settings.EMAIL.EMAILcc;\nmsg1.from = Settings.EMAIL.EMAILfrom;\nmsg1.topic = \"The Area \"+msg.payload.alertapgroupName+\" has reached, or exceeded its maximum Capacity\";\nmsg1.payload = \"<font size = 4>An <font color=red><B>ALERT</B></font color> has been triggered for the the Area <B>\"+msg.payload.alertapgroupName+\"</B>. <BR><BR> The total connected Device count in this Area is <B>\"+msg.payload.alertapgroupdeviceNum+\"</B> which equals, or exceeds the configured Area Capacity threshold of <B>\"+msg.payload.alertapgroupThreshold+\"</B>.\";\nnode.send([msg1, null]);\nnode.done();\n\nmsg2 = {};\nmsg2.url = Settings.SMS.SMSServer;\nmsg2.text = \"An Area Capacity ALERT has been triggered for the the Area \"+msg.payload.alertapgroupName+\". The total connected Device count in this Area is \"+msg.payload.alertapgroupdeviceNum+\" which equals, or exceeds the configured Area Capacity threshold of \"+msg.payload.alertapgroupThreshold+\".\";\n    msg2.payload = {\n        'from': Settings.SMS.SMSSender,\n        'to': Settings.SMS.PRInumber,\n        'text': msg2.text,\n        'api_key':Settings.SMS.api_key,\n        'api_secret': Settings.SMS.api_secret,\n    };\nreturn [null, msg2];",
+        "outputs": 2,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 1570,
+        "y": 1140,
+        "wires": [
+            [],
+            []
+        ],
+        "outputLabels": [
+            "Send Alert EMail",
+            "Send Alert SMS"
+        ]
+    },
+    {
+        "id": "9d3b1c25.3d2b7",
+        "type": "e-mail",
+        "z": "ef97fb1b.89a498",
+        "server": "smtp.gmail.com",
+        "port": "465",
+        "secure": true,
+        "tls": true,
+        "name": "",
+        "dname": "EMail",
+        "x": 1770,
+        "y": 1100,
+        "wires": []
+    },
+    {
+        "id": "27002ddc.974e92",
+        "type": "ui_text",
+        "z": "ef97fb1b.89a498",
+        "group": "adf183d8.301fe",
+        "order": 8,
+        "width": 8,
+        "height": 1,
+        "name": "Selected AP Group Health text",
+        "label": "<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size = 3><font color=#555555><center>Selected Area AP Health Status Information:</font></p> </body> </html>",
+        "format": "",
+        "layout": "row-left",
+        "x": 1689,
+        "y": 540,
+        "wires": [],
+        "info": "This has not function apart from putting  text above the WLAN / SSID list"
+    },
+    {
+        "id": "4416fe3.7ecbe",
+        "type": "file in",
+        "z": "ef97fb1b.89a498",
+        "name": "Read from Area Density Data File",
+        "filename": "/home/ruckus/Area_Density_Settings.json",
+        "format": "utf8",
+        "chunk": false,
+        "sendError": false,
+        "encoding": "utf8",
+        "x": 840,
+        "y": 1020,
+        "wires": [
+            [
+                "6be6a641.78f6c8"
+            ]
+        ]
+    },
+    {
+        "id": "a602fe70.930bc",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Update Area Capacity Table",
+        "func": "//Clear table data\nmsg1 = [];\nmsg1.payload = [];\nnode.send([msg1,null,null]);\nnode.done();\n\n//Send text to Notification node\nmsg2 = {};\nmsg2.payload = \"The Area Caapcity Configuration has been Imported and the Table Updated\";\nnode.send([null,msg2,null]);\nnode.done();\n\n//The returned JSON string has a key of \"apgroupSelection\" thus to access the array need to use the format:\n//\"apgroupSelection.[arrayID]\" instead of just the [arrayID]\n//This line imports the data as an array without the key, hence saves having to re-write the original \n//code functions to inlcude the key\nflow.set(\"apgroupSelection\", msg.payload.apgroupSelection);\nmsg3 = {};\nmsg3.payload = flow.get(\"apgroupSelection\");\n\n//Wait for 1.5 seconds for Area Capacity table to clear before updating it\nsetTimeout(function(){\nnode.send([null,null,msg3]);\nnode.done();\n    },1500);\nreturn;",
+        "outputs": 3,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 1400,
+        "y": 1020,
+        "wires": [
+            [
+                "7a23fd6f.b70e44",
+                "974d98d8.8d0618"
+            ],
+            [
+                "16e7e451.9ba4bc"
+            ],
+            [
+                "88ffbfa1.3e746"
+            ]
+        ],
+        "outputLabels": [
+            "Clear Tables Data",
+            "Notify that Data has been Imported",
+            "Send Imported Data for processing"
+        ]
+    },
+    {
+        "id": "6be6a641.78f6c8",
+        "type": "json",
+        "z": "ef97fb1b.89a498",
+        "name": "Convert to JSON",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 1130,
+        "y": 1020,
+        "wires": [
+            [
+                "a602fe70.930bc"
+            ]
+        ]
+    },
+    {
+        "id": "68d35c15.f37194",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "Export & Import Data - file /home/ruckus/Area_Density_Settings.json",
+        "info": "",
+        "x": 280,
+        "y": 918,
+        "wires": []
+    },
+    {
+        "id": "a1b3c1a5.f0b3",
+        "type": "ui_text",
+        "z": "ef97fb1b.89a498",
+        "group": "adf183d8.301fe",
+        "order": 24,
+        "width": 17,
+        "height": 1,
+        "name": "Management - Area Capacity Status Table Text",
+        "label": "<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size = 3><font color=black><center><B>Selected Area Capacity Status table</B><font color=grey>&emsp;(Auto-updated on: {{msg.dateTime}})<BR><font color=#696969><B>GREY<font color=black></B> for 0 devices&emsp;|&emsp;<font color=Green><B>GREEN<font color=black></B> for less than Capacity&emsp;|&emsp;<font color=Red><B>RED<font color=black></B> for equal to, or greater than Capacity</center></font></p> </body> </html>",
+        "format": "",
+        "layout": "row-center",
+        "x": 1640,
+        "y": 720,
+        "wires": [],
+        "info": "This has not function apart from putting  text above the WLAN / SSID list"
+    },
+    {
+        "id": "78c5b0cd.60ce3",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Save Selected Areas & Thresholds",
+        "func": "var apgroupSelection=flow.get(\"apgroupSelection\")\nmsg.payload={\"apgroupSelection\":apgroupSelection}\n            //msg.filename=\"/home/ruckus/Area_Density_Settings.json\" - configured in the File Save node\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 840,
+        "y": 960,
+        "wires": [
+            [
+                "7c15e5e6.f6bcfc"
+            ]
+        ]
+    },
+    {
+        "id": "7c15e5e6.f6bcfc",
+        "type": "file",
+        "z": "ef97fb1b.89a498",
+        "name": "Write to File",
+        "filename": "/home/ruckus/Area_Density_Settings.json",
+        "appendNewline": false,
+        "createDir": true,
+        "overwriteFile": "true",
+        "encoding": "utf8",
+        "x": 1110,
+        "y": 960,
+        "wires": [
+            [
+                "7e4c93f5.ab8fdc"
+            ]
+        ]
+    },
+    {
+        "id": "af1cf601.2bd008",
+        "type": "ui_text",
+        "z": "ef97fb1b.89a498",
+        "group": "adf183d8.301fe",
+        "order": 15,
+        "width": 17,
+        "height": 1,
+        "name": "Area Threshold Selection Slider text",
+        "label": "<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size = 3><font color=black><center><B>Select an Area from the above Area table & then set it's Capacity using the slider</B><BR> (A setting of 0 will remove the selected Area from the Area Capacity Status table)</center></font></p> </body> </html>",
+        "format": "",
+        "layout": "row-center",
+        "x": 187,
+        "y": 673,
+        "wires": [],
+        "info": "This has not function apart from putting  text above the WLAN / SSID list"
+    },
+    {
+        "id": "974d98d8.8d0618",
+        "type": "ui_table",
+        "z": "ef97fb1b.89a498",
+        "group": "adf183d8.301fe",
+        "name": "Management - Area Capacity Status Table",
+        "order": 27,
+        "width": 17,
+        "height": 6,
+        "columns": [
+            {
+                "field": "id",
+                "title": "Hidden_Index",
+                "width": "",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "apgroupName",
+                "title": "Hotel Area",
+                "width": "40%",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "apgroupColour",
+                "title": "<center>Capacity Status</center>",
+                "width": "30%",
+                "align": "left",
+                "formatter": "color",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "apgroupdeviceNum",
+                "title": "<center>Device Count</center>",
+                "width": "15%",
+                "align": "center",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "threshold",
+                "title": "<center>Capacity</center>",
+                "width": "15%",
+                "align": "center",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            }
+        ],
+        "outputs": 0,
+        "cts": false,
+        "x": 1660,
+        "y": 760,
+        "wires": []
+    },
+    {
+        "id": "add56a86.73bb38",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Clear all data/set defaults",
+        "func": "//Set key variables to Null value.\n    flow.set(\"zoneID\",null);\n    flow.set(\"zoneName\",null);\n    flow.set(\"apOnline\", null);\n    flow.set(\"apFlagged\", null);\n    flow.set(\"apOffline\", null);\n    flow.set(\"apgroupID\", null); //The SZ AP Group ID\n    flow.set(\"apgroupName\", null); //The SZ AP Group Name aka the Area Name\n    flow.set(\"apgroupnameIndex\", null); //Lower case version of the Area Name used for indexing in the array & tables\n    flow.set(\"apgroupSelection\",[]); //Selected AP Group(s) (Area) data array\n    flow.set(\"threshold\",0); //The Threshold setting for each Area\n\n//Send empty array to clear all the tables out of port 1\nmsg1 = {};\nmsg1.payload = [];\nnode.send([msg1, null, null, null, null]);\n\n//Send null to zero slider out of port 2\nmsg2 = {}\nmsg2.payload = 0;\nnode.send([null, msg2, null, null, null]);\n\n//Set the per Area displays to a default Area status of Unknown\nmsg3 = {};\nmsg3.area = \"undefined\";\nmsg3.colour = \"darkgrey\"; //Set Colour to be used in Status Display page text\nmsg3.fa_icon = \"question-circle\";\nmsg3.message = \"This Areas Status is Unknown - Please check with Staff before entering\";\nnode.send([null,null,msg3,null,null]);\n\n//Send message to hide the lower case Area Name Indexing column \"Hidden_Index\" (id column) in the Area Capacity tables\nmsg4 = {};\nmsg4.topic = \"columns\"\nmsg4.ui_control = {tabulator:{}};\nmsg4.ui_control.tabulator[msg4.topic]= [{\n        \"field\": \"id\",\n        \"title\": \"Hidden_Index\",\n        \"visible\": false,\n        \"formatter\": \"plainText\"\n    }];\nmsg4.payload=null;\nnode.send([null, null, null, msg4, null]);\nnode.done();\n\n//Apply Bold text to Hotel Area Name in the Area Capacity tables before they are populated\nmsg5 = {};\nmsg5.topic = \"columns\"\nmsg5.ui_control = {tabulator:{}};\nmsg5.ui_control.tabulator[msg5.topic]= [{\n        \"field\": \"apgroupName\",\n        \"title\": \"Hotel Area\",\n        \"formatter\": \"function(cell, formatterParams, onRendered) {return \\\"<span style=font-weight:bold;'>\\\" + cell.getValue() + \\\"</span>\\\";}\"\n    },];\nmsg5.payload = null;\nnode.send([null, null, null, msg5, null]);\nnode.done();\n\n//Apply Bold text to Area AP Health Status table & colour\nmsg6 = {};\nmsg6.topic = \"columns\"\nmsg6.ui_control = {tabulator:{}};\nmsg6.ui_control.tabulator[msg6.topic]= [\n    {\n        \"field\": \"onlineCount\",\n        \"title\": \"Online\",\n        \"formatter\": \"function(cell, formatterParams, onRendered) {return \\\"<span style=color:green;font-weight:bold;'>\\\" + cell.getValue() + \\\"</span>\\\";}\"\n    },\n\t    {\n        \"field\": \"flaggedCount\",\n        \"title\": \"Flagged\",\n        \"formatter\": \"function(cell, formatterParams, onRendered) {return \\\"<span style=color:orange;font-weight:bold;'>\\\" + cell.getValue() + \\\"</span>\\\";}\"\n    },\n\t\t    {\n        \"field\": \"offlineCount\",\n        \"title\": \"Offline\",\n        \"formatter\": \"function(cell, formatterParams, onRendered) {return \\\"<span style=color:red;font-weight:bold;'>\\\" + cell.getValue() + \\\"</span>\\\";}\"\n    },\n];\nmsg6.payload = null;\nreturn [null, null, null, null, msg6];",
+        "outputs": 5,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 290,
+        "y": 440,
+        "wires": [
+            [
+                "974d98d8.8d0618",
+                "f9b66637.fdf728",
+                "cfb098ed.1acb98",
+                "d4a10941.9fc808",
+                "16e30fff.1d4c8",
+                "7a23fd6f.b70e44",
+                "5631cffc.d4f49"
+            ],
+            [
+                "ff979ac7.25c718"
+            ],
+            [
+                "26c0cfb1.3ba7a",
+                "a1b216cb.853e58",
+                "7ecaa891.4bdbf8"
+            ],
+            [
+                "974d98d8.8d0618",
+                "7a23fd6f.b70e44"
+            ],
+            [
+                "5631cffc.d4f49"
+            ]
+        ],
+        "outputLabels": [
+            "Clear tables",
+            "Clear all other Dashboard Data",
+            "Send Unkown Area status to Area Monitoring Displays",
+            "Send message to hide the Hidden_Index column in Area Capacity tables & apply bold text to Area Name",
+            "Set Area AP Health Status table cell format"
+        ]
+    },
+    {
+        "id": "538010fe.df7d",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Send Selected AP Group Info",
+        "func": "//Upon an Area being selected and a threshold set, this function node:\n//1. Set status based on Device to Threshold ratio\n//2. Sends updated data to Area Capacity Tables\n//3. Sends updated data to the respective per Area Monitoring status Displays\n//4. Sends EMail Alert if an Area threshold is crossed (won't send again until the Area has been under-threshold again)\n\n//**Note** If you add more Area Monitoring Displays then remember to update all node.send & the final return statements to include the new areas\n\n//Load the currently selected AP Group (Area) flow context array data into a local context data array\nvar apgroupSelection = flow.get(\"apgroupSelection\");\n\n//Check what index number in the array the selected AP Group (Area) is and set checkIndex to its value\ncheckIndex = apgroupSelection.findIndex(obj => obj.id == flow.get(\"apgroupName\").toLowerCase());\n\n//This section:\n//1. Configures the per Area status for each entry in the Area Status table where checkIndex = current index in flow array apgroupSelection\n// to track which Area Status table entry is currently being updated\n//2. Sends the updated per Area Status to the configured per Area Monitoring Display pages\n//3. Tracks, configures and sends E-Mail alert if required\n\n//Define message variable to be sent with per Area Monitoring Status display\n//Set the AP Group (Area) name to be upper case for display in the per Area Displays\nvar msg2 = {};\nmsg2.area = flow.get(\"apgroupName\").toUpperCase();\n\n//Device count = 0 - if it is then set status colour to grey i.e. 0 devices in the Area\nif (msg.payload.totalCount == 0) {\n\tmsg2.colour = \"darkgrey\";\n\tmsg2.fa_icon = \"question-circle\";\n    msg2.message = \"This Areas Status is Unknown - Please check with Staff before entering\";\n    apgroupSelection[checkIndex].alert = false; //Sets E-Mail Alert flag back to false so can be triggered again if over-threshold crossed\n}\n//Device count less than Threshold = Green\nif ((msg.payload.totalCount > 0) && (msg.payload.totalCount < flow.get(\"threshold\"))) {\n\tmsg2.colour = \"green\";\n\tmsg2.fa_icon = \"check-circle\";\n    msg2.message = \"You may Safely Enter this Area\";\n    apgroupSelection[checkIndex].alert = false; //Sets E-Mail Alert flag back to false so can be triggered again if over-threshold crossed\n}\n//Device count equal to, or more than the Threshold = Red\nif ((msg.payload.totalCount > 0) && (msg.payload.totalCount >= flow.get(\"threshold\"))) {\n\tmsg2.colour = \"red\";\n\tmsg2.fa_icon = \"times-circle\";\n    msg2.message = \"This Area is at it's Maximum Capacity. Please come back later...\";\n\n//If an EMail Alert hasn't been sent (alert == false) then send one and set alert flag to true indicating one has now been sent\n//This ensures that an EMail Alert will only be sent the 1st time an AP Group (Area) goes over the threshold\n//It has to go below the threshold and over again for another EMail alert to be sent\n if (apgroupSelection[checkIndex].alert == false) {\n        apgroupSelection[checkIndex].alert = true; //Set flag that EMail Alert sent and prevent another one sent until crosses threshold again\n}       \n//Define EMail alert content data and forward to EMail Alert send node\n//Define a new msg variable as its best practice not to write over the received msg.payload    \n        var msg1 = {};\n        msg1.payload = {\"alertapgroupName\": flow.get(\"apgroupName\").toUpperCase(), \"alertapgroupdeviceNum\": msg.payload.totalCount, \"alertapgroupThreshold\": flow.get(\"threshold\")};\n        node.send([null, msg1, null, null, null]); \n        node.done();\n}\n\n//PER AREA ACCESS INFORMATION DISPLAYS\n//Send Info to correct Area ui_Template node for display in the respective per Area Access Information Displays\n//The apgroupNameIndex is always lower case, so using .toLowerCase() function just in case differnet case used in SZ AP Group Name\nif (flow.get(\"apgroupnameIndex\") === \"CONFERENCING\".toLowerCase()) {\n\tnode.send([null, null, msg2, null, null]); \n\tnode.done();\n}\nif (flow.get(\"apgroupnameIndex\") === \"RESTAURANT\".toLowerCase()) {\n\tnode.send([null, null, null, msg2, null]); \n\tnode.done();\t\n}\t\nif (flow.get(\"apgroupnameIndex\") === \"BAR\".toLowerCase()) {\n\tnode.send([null, null, null, null, msg2]); \n\tnode.done();\t\n}\n\n//Add or Update data in the Area Capacity table.\n//Note that the \"id\" is used to define the index for each each row in a ui_table\n//I am using the lower-case selected AP Group (Area) Name for this\nvar msg3={};\nmsg3.payload = {\n    command: \"updateOrAddData\",\n    arguments: [[\n        {\n            \"id\": flow.get(\"apgroupnameIndex\"),\n            \"apgroupName\": flow.get(\"apgroupName\"),\n            \"apgroupColour\": msg2.colour,\n            \"apgroupdeviceNum\": msg.payload.totalCount,\n            \"threshold\": flow.get(\"threshold\")\n        },\n    ]],\n    returnPromise: false\n}\nreturn[msg3, null, null, null,null];",
+        "outputs": 5,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 1207,
+        "y": 798,
+        "wires": [
+            [
+                "974d98d8.8d0618",
+                "7a23fd6f.b70e44"
+            ],
+            [
+                "f022cd27.6a294"
+            ],
+            [
+                "26c0cfb1.3ba7a"
+            ],
+            [
+                "a1b216cb.853e58"
+            ],
+            [
+                "7ecaa891.4bdbf8"
+            ]
+        ],
+        "outputLabels": [
+            "Send data to Area Capacity Status table",
+            "Send data to EMail Alert",
+            "Send data to CONFERENCING Area Display",
+            "Send data to RESTAURANT Area Display",
+            "Send data to BAR Area Display"
+        ]
+    },
+    {
+        "id": "ce83b333.cf365",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Update Array & Table entries",
+        "func": "//The function is split into to 4 parts:\n//1st deals with checking if the currently selected AP Group (Area) exists in the array\n//2nd checks if it does and if threshold = 0 then deletes it from the array and the Device Density table\n//3rd checks if it dopes and updates the threshold\n//4th checks if it doesn't exist and add it to the array and Device Density table\n\n//Exit if Slider selection cancelled\nif(msg.payload == \"Cancel\") {\n    return;\n}\n\n//Load the currently selected AP Group (Area) flow context array data into a local context data array\nvar apgroupSelection = flow.get(\"apgroupSelection\");\n\n//Set apgroupnameIndex to be lower-case version of apgroupName as its used as case insensitive lookup field\nflow.set(\"apgroupnameIndex\", flow.get(\"apgroupName\").toLowerCase());\n\n//Check to see if the selected AP Group (Area) already exists in the selected AP Group array\n//Set the variable \"checkIndex\" to be the array index number of the selected AP Group (Area)\n//When checked it will return -1 if its not in the array\n//id is the lower-case selected AP group name which can be compared to lower-case conversion of the selected AP Group Area name\ncheckIndex = apgroupSelection.findIndex(obj => obj.id == flow.get(\"apgroupName\").toLowerCase());\n\n//If the selected AP Group (Area) doesn't exist array (checkIndex is < 0) and threshold value = 0 then bring up warning\nif (checkIndex < 0 && flow.get(\"threshold\") == 0){\n    var msg1 = {};\n    msg1.socketid = msg.socketid; // Required to stop notification popping up in all browser windows\n    msg1.payload = '<!DOCTYPE html><html lang=\"en\"><head></head><body><center>You cannot set a Capacity Threshold of <B>0</B> for the selected Area <B>'+flow.get(\"apgroupName\")+'</B> as it has not previously been added to the Area Capacity Status table.</BR>Please select a Threshold value greater than <B>0</B> (0 is used to remove an existing table entry). </body></html>';\n    return [null,null,msg1];\n}\n\n//If the selected AP Group (Area) entry already exists in the array (checkIndex is 0 or greater) and threshold value = 0 \n//then delete it from the AP Group array & Device Density table\nif (checkIndex > -1 && flow.get(\"threshold\") == 0){\n    apgroupSelection.splice(checkIndex,1);\n//Send selected AP Group (Area) name as payload argument to clear entry from the Area Density table out of port 1\n//Define a new msg variable as its best practice not to write over the received msg payload\nmsg2 = {}\nmsg2.payload = {\n    \"command\":\"deleteRow\",\n    \"arguments\": \n    [flow.get(\"apgroupnameIndex\")], //Specifies which entry to delete as this variable is the row index field in the table\n    \"returnPromise\": false }\nreturn [msg2,null,null];\n}\n\n//If the selected AP Group (Area) entry already exists in the array (checkIndex is 0 or greater)  \n//then update its Threshold configuration in the AP Group (Area) array\nif (checkIndex > -1 && flow.get(\"threshold\") > 0){\napgroupSelection[checkIndex].threshold = flow.get(\"threshold\");\n}\n\n//Check if selected entry exists in the array, if not Push it in there as new entry\nif (checkIndex < 0 && flow.get(\"threshold\") > 0){\napgroupSelection.push({id: flow.get(\"apgroupnameIndex\"),apgroupName: flow.get(\"apgroupName\"),groupId: flow.get(\"apgroupID\"),threshold: flow.get(\"threshold\"),alert: false});\n}\n\n//Format POST to get the client details for the selected AP group\n//The Limit is set to 1 as not interested in returning all clients details, only the total clients per AP Group (Area))\nmsg3 = {};\nmsg3.url = flow.get(\"szAddress\").concat(\"/wsg/api/public/v9_1/query/client?serviceTicket=\");\nmsg3.url = msg3.url.concat(flow.get(\"serviceTicket\"));\n\nmsg3.headers = {};\n    msg3.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg3.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"vSZSessionCookie\");\n\nmsg3.payload = {\n    \"filters\":\n\t\t[{\"type\": \"APGROUP\",\"value\": flow.get(\"apgroupID\")}],\n\t\"limit\": 1,\n\t\"page\": 1\n    }\nreturn[null,msg3,null];",
+        "outputs": 3,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 720,
+        "y": 796,
+        "wires": [
+            [
+                "974d98d8.8d0618",
+                "7a23fd6f.b70e44"
+            ],
+            [
+                "6a22d169.16606"
+            ],
+            [
+                "cba292c8.4973e"
+            ]
+        ],
+        "outputLabels": [
+            "Clear current Area entry from Device Density table",
+            "Send updated Threshold or Add new Area to table",
+            "Popup warning that Threshold can't be 0 for an Area that isn't in the Device Density table"
+        ]
+    },
+    {
+        "id": "f33a0a98.21c3e8",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Send  Updated AP Group Info",
+        "func": "//This function node Periodically:\n//1. Sends date/time update to the Area Capacity table each time its automatically updated\n//2. Set colour status based on Device to Threshold ratio\n//3. Sends updated data to Area Capacity Tables\n//4. Sends updated data to the respective per Area Monitoring status Displays\n//5. Sends EMail Alert if an Area threshold is crossed (won't send again until the Area has been under-threshold again)\n\n//**Note** If you add more Area Monitoring Displays then remember to update all node.send & the final return statements to include the new areas\n\n//Check if incoming msg.timestamp from Inject timestamp node is an integer\n//If it is then get.format current date/time and send out of port 1 to update the Area Capacity table header\nif (Number.isInteger(msg.payload)) {\n    fullDateTime = new Date(); //Get full date and time\n    stringDateTime = fullDateTime.toString(); //Convert to a string\n    currentDateTime = stringDateTime.substr(0, 24); //Truncate to strip timezone info at end of string  \n    //Send current Date and Time update\n    var msg1 = {};\n    msg1.dateTime = currentDateTime;\n    node.send([msg1, null, null, null, null, null]);\n    node.done();\n}\n\n//Check if the loopCounter passed from downstream function node/http request is undefined\n//If it is  then it means that this function node was called for a date/time update, not data update\n//So skip sending data update as its just a date/time update above performed\nif (typeof msg.loopCounter == \"undefined\") {\nreturn;\n}\n\nelse {\n//msg.loopCounter = current index in flow array apgroupSelection from the node \"Update Area Capacity Table\"\n\n//This section:\n//1. Configures the per Area status for each entry in the Area Status table where msg.loopCounter = current index in flow array apgroupSelection\n// from the node \"Update Area Capacity Table\" is to track which Area Status table entry is currently being updated\n//2. Sends the updated per Area Status to the configured per Area Monitoring Display pages\n//3. Tracks, configures and sends E-Mail alert if required\n\n//Note: Incoming msg.area is same case AP Group (Area) Name as configured on SZ\n//msg.id is the AP Group (Area) Name in lower case used for indexing lookups in tables and array\n\n//Define message variable to be sent with per Area Monitoring Status display\nvar msg2 = {};\nmsg2.area = msg.area;\nmsg2.dateTime = currentDateTime;\n\n//Device count = 0 - if it is then set status colour to Grey i.e. 0 devices in the Area\nif (msg.payload.totalCount == 0) {\n\tmsg2.colour = \"darkgrey\";\n    msg2.fa_icon = \"question-circle\";\n    msg2.message = \"This Areas Status is Unknown - Please check with Staff before entering\";\n\tflow.set(\"apgroupSelection[\"+msg.loopCounter+\"].alert\", false); //Sets E-Mail Alert flag back to false so can be triggered again if over-threshold crossed\n}\n//Device count less than Threshold = Green\nif ((msg.payload.totalCount > 0) && (msg.payload.totalCount < msg.threshold)) {\n\tmsg2.colour = \"green\";\n\tmsg2.fa_icon = \"check-circle\";\n    msg2.message = \"You may Safely Enter this Area\";\n\tflow.set(\"apgroupSelection[\"+msg.loopCounter+\"].alert\", false); //Sets E-Mail Alert flag back to false so can be triggered again if over-threshold crossed\n}\n//Device count equal to, or more than Threshold = Red\nif ((msg.payload.totalCount > 0) && (msg.payload.totalCount >= msg.threshold)) {\n\tmsg2.colour = \"red\";\n\tmsg2.fa_icon = \"times-circle\";\n    msg2.message = \"This Area is at it's Maximum Capacity. Please come back later...\";\n\n//If an EMail Alert hasn't been sent (alert == false) then send one and set alert flag to true indicating one has now been sent\n//This ensures that an EMail Alert will only be sent the 1st time an AP Group (Area) goes over the threshold\n//It has to go below the threshold and over again for another EMail alert to be sent\n if (flow.get(\"apgroupSelection[\"+msg.loopCounter+\"].alert\") == false) {\n    flow.set(\"apgroupSelection[\"+msg.loopCounter+\"].alert\", true); //Set flag that EMail Alert sent and prevent another one sent until crosses threshold again\n\n//Define EMail alert content data and forward to EMail Alert send node\n//Define a new msg variable as its best practice not to write over the received msg.payload    \n    var msg3 = {};\n    msg3.payload = {\"alertapgroupName\": msg.area.toUpperCase(), \"alertapgroupdeviceNum\": msg.payload.totalCount, \"alertapgroupThreshold\": msg.threshold};\n    node.send([null, null, msg3, null, null, null]); \n    node.done();   \n    }\n}\n\n//Set the outbound msg2.area AP Group (Area) Name to be uppercase for display in the per Area Display\nmsg2.area = msg.area.toUpperCase();\n\n//PER AREA ACCESS INFORMATION DISPLAYS\n//Send Info to correct Area ui_Template node for display in the respective per Area Access Information Displays\n//The apgroupNameIndex is always lower case, so using .toLowerCase() function just in case differnet case used in SZ AP Group Name\nif (msg.id === \"CONFERENCING\".toLowerCase()) {\n\tnode.send([null, null, null, msg2, null, null]); \n\tnode.done();\n}\nif (msg.id === \"RESTAURANT\".toLowerCase()) {\n\tnode.send([null, null, null, null, msg2, null]); \n\tnode.done();\t\n}\nif (msg.id === \"BAR\".toLowerCase()) {\n\tnode.send([null, null, null, null, null, msg2]); \n\tnode.done();\t\n}\n\n//Add or Update data in the Area Capacity Table\n//1) The \"id\" which is the current AP Group (Area) is used to define each row (i.e. index) in the Area Capacity table \n//2) SZ http repsonses may arrive back asynchronously so also using msg.area payload set in the\n//\"Periodically update Device Density Table\" node to make sure that the returned AP Group client count is for that area\nvar msg4 = {}\nmsg4.payload = {\n    command: \"updateOrAddData\",\n        arguments: [[\n            {\n                \"id\": msg.id,\n                \"apgroupName\": msg.area,\n                \"apgroupColour\": msg2.colour,\n                \"apgroupdeviceNum\": msg.payload.totalCount,\n                \"threshold\": msg.threshold,\n            },\n    ]],\n    returnPromise: false\n    }\nreturn [null, msg4, null, null, null, null];\n}",
+        "outputs": 6,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 720,
+        "y": 1209,
+        "wires": [
+            [
+                "a1b3c1a5.f0b3",
+                "9cfc02f6.20b34"
+            ],
+            [
+                "974d98d8.8d0618",
+                "7a23fd6f.b70e44"
+            ],
+            [
+                "f022cd27.6a294"
+            ],
+            [
+                "26c0cfb1.3ba7a"
+            ],
+            [
+                "a1b216cb.853e58"
+            ],
+            [
+                "7ecaa891.4bdbf8"
+            ]
+        ],
+        "outputLabels": [
+            "Send current date & time",
+            "Send periodic updates to Area Status tables",
+            "Send message to E-MAIL node",
+            "Send data to CONFERENCING Area Display",
+            "Send data to RESTAURANT Area Display",
+            "Send data to BAR Area Display"
+        ]
+    },
+    {
+        "id": "f9b66637.fdf728",
+        "type": "ui_text",
+        "z": "ef97fb1b.89a498",
+        "group": "adf183d8.301fe",
+        "order": 7,
+        "width": 9,
+        "height": 1,
+        "name": "Selected AP Group (Area) text",
+        "label": "<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size = 3><font color=#555555>Selected Area:&ensp;</font></p> </body> </html>",
+        "format": "<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size =4><font color=red>{{msg.payload.name}}</font></p> </body> </html>",
+        "layout": "row-left",
+        "x": 210,
+        "y": 540,
+        "wires": [],
+        "info": "This has not function apart from putting  text above the WLAN / SSID list"
+    },
+    {
+        "id": "cfb098ed.1acb98",
+        "type": "ui_table",
+        "z": "ef97fb1b.89a498",
+        "group": "adf183d8.301fe",
+        "name": "AP Group (Area) List Table",
+        "order": 10,
+        "width": 9,
+        "height": 3,
+        "columns": [
+            {
+                "field": "name",
+                "title": "Hotel Areas",
+                "width": "",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            }
+        ],
+        "outputs": 1,
+        "cts": true,
+        "x": 200,
+        "y": 580,
+        "wires": [
+            [
+                "f9b66637.fdf728",
+                "b6a110b3.f8c79",
+                "b2e28ce1.007d9"
+            ]
+        ]
+    },
+    {
+        "id": "5631cffc.d4f49",
+        "type": "ui_table",
+        "z": "ef97fb1b.89a498",
+        "group": "adf183d8.301fe",
+        "name": "Selected AP Group Health",
+        "order": 11,
+        "width": 8,
+        "height": 2,
+        "columns": [
+            {
+                "field": "onlineCount",
+                "title": "Online",
+                "width": "",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "flaggedCount",
+                "title": "Flagged",
+                "width": "",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "offlineCount",
+                "title": "Offline",
+                "width": "",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            }
+        ],
+        "outputs": 0,
+        "cts": false,
+        "x": 1710,
+        "y": 580,
+        "wires": []
+    },
+    {
+        "id": "d4a10941.9fc808",
+        "type": "ui_table",
+        "z": "ef97fb1b.89a498",
+        "group": "adf183d8.301fe",
+        "name": "AP Zones List Table",
+        "order": 9,
+        "width": 8,
+        "height": 3,
+        "columns": [
+            {
+                "field": "name",
+                "title": "AP Zones",
+                "width": "",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            }
+        ],
+        "outputs": 1,
+        "cts": true,
+        "x": 1020,
+        "y": 400,
+        "wires": [
+            [
+                "16e30fff.1d4c8",
+                "7d4943d7.2dfabc"
+            ]
+        ]
+    },
+    {
+        "id": "16e30fff.1d4c8",
+        "type": "ui_text",
+        "z": "ef97fb1b.89a498",
+        "group": "adf183d8.301fe",
+        "order": 6,
+        "width": 8,
+        "height": 1,
+        "name": "Selected AP Zone text",
+        "label": "<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size = 3><font color=#555555>Selected AP Zone:&ensp;</font></p> </body> </html>",
+        "format": "<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size =4><font color=red>{{msg.payload.name}}</font></p> </body> </html>",
+        "layout": "row-left",
+        "x": 1020,
+        "y": 440,
+        "wires": [],
+        "info": "This has not function apart from putting  text above the AP Zone list"
+    },
+    {
+        "id": "ff979ac7.25c718",
+        "type": "ui_slider",
+        "z": "ef97fb1b.89a498",
+        "name": "Threshold Select Slider",
+        "label": "",
+        "tooltip": "If no Area is selected the slider will return to 0",
+        "group": "adf183d8.301fe",
+        "order": 18,
+        "width": 17,
+        "height": 1,
+        "passthru": true,
+        "outs": "end",
+        "topic": "",
+        "topicType": "str",
+        "min": "0",
+        "max": "50",
+        "step": "5",
+        "x": 190,
+        "y": 714,
+        "wires": [
+            [
+                "6955993.d032168"
+            ]
+        ]
+    },
+    {
+        "id": "ffb3a04d.f33d",
+        "type": "ui_button",
+        "z": "ef97fb1b.89a498",
+        "name": "Clear & Refresh Tables & Data",
+        "group": "adf183d8.301fe",
+        "order": 3,
+        "width": 9,
+        "height": 1,
+        "passthru": true,
+        "label": " &nbspClear all Tables and Refresh Data",
+        "tooltip": "Refresh the AP Zone/Group list, reset existing selections, clear Zone/WLAN lists and charts.",
+        "color": "Red",
+        "bgcolor": "#EAEAEA",
+        "icon": "fa-trash-o",
+        "payload": "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><link></head><body><center>Clicking <B>OK</B> will clear all current Area and Capacity settings in the Area Capacity Status table.<BR>If you wish to save the current configuration then select <B>Cancel</B> and use the <B>SAVE CONFIGURATION</B> option first.</body></html>",
+        "payloadType": "str",
+        "topic": "",
+        "topicType": "str",
+        "x": 410,
+        "y": 300,
+        "wires": [
+            [
+                "bf86d4ac.848ab8",
+                "23764aa6.19a986"
+            ]
+        ]
+    },
+    {
+        "id": "6a22d169.16606",
+        "type": "http request",
+        "z": "ef97fb1b.89a498",
+        "name": "http post",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": false,
+        "url": "",
+        "tls": "d8d96dbf.ae322",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 980,
+        "y": 798,
+        "wires": [
+            [
+                "538010fe.df7d"
+            ]
+        ]
+    },
+    {
+        "id": "6fe5fc92.77ace4",
+        "type": "ui_toast",
+        "z": "ef97fb1b.89a498",
+        "position": "dialog",
+        "displayTime": "3",
+        "highlight": "",
+        "sendall": false,
+        "outputs": 1,
+        "ok": "OK",
+        "cancel": "Cancel",
+        "raw": true,
+        "topic": "",
+        "name": "Set new threshold for Area",
+        "x": 430,
+        "y": 796,
+        "wires": [
+            [
+                "ce83b333.cf365"
+            ]
+        ]
+    },
+    {
+        "id": "83a4778c.be98d8",
+        "type": "http request",
+        "z": "ef97fb1b.89a498",
+        "name": "http post",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": false,
+        "url": "",
+        "tls": "d8d96dbf.ae322",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 443,
+        "y": 1208,
+        "wires": [
+            [
+                "f33a0a98.21c3e8"
+            ]
+        ]
+    },
+    {
+        "id": "b6a110b3.f8c79",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Set New Flow Vars for selected AP Group",
+        "func": "flow.set(\"apgroupID\", msg.payload.id);// SZ AP Group ID\nflow.set(\"apgroupName\", msg.payload.name); //SZ AP group Name which is symbolically the Area Name\nreturn;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 520,
+        "y": 620,
+        "wires": [
+            [
+                "ff979ac7.25c718"
+            ]
+        ]
+    },
+    {
+        "id": "b2e28ce1.007d9",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Get AP Group Health Status",
+        "func": "msg.url = flow.get(\"szAddress\").concat(\"/wsg/api/public/v9_1/health/status/ap?serviceTicket=\");\nmsg.url = msg.url.concat(flow.get(\"serviceTicket\"));\n\nmsg.headers = {};\n    msg.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"vSZSessionCookie\");\nmsg.topic = \"apHealth\"\nmsg.payload = {\n    \"filters\":\n        [{\"type\":\"APGROUP\",\"value\":flow.get(\"apgroupID\")}],\n\t    //\"extraFilters\":[{\"type\":\"GROUP\",\"value\":flow.get(\"apgroupID\")}],\n\t    \"extraNotFilters\":[{\"type\":\"MONITORINGENABLED\",\"value\":\"true\"}],\n\t\t\"options\":{},\n\t    \"limit\":10,\n\t    \"page\":1\n}\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 820,
+        "y": 580,
+        "wires": [
+            [
+                "fc93e71f.0a8ab8"
+            ]
+        ]
+    },
+    {
+        "id": "25b003a7.95b57c",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Send AP Group Info",
+        "func": "\n//Send the list of AP Groups for the selected AP Zone to the list box\nmsg.payload = msg.payload.list;\nnode.send([msg]);\n\n//Now set the WLAN / SSID list sort order by WLAN Name (mane key) after 300ms to allow table to be populated first\nsetTimeout(function(){\n        msg.payload = {\n        \"command\":\"setSort\",\n        \"arguments\":[\n    [{\n\t\t\"column\":\"name\",\"dir\":\"asc\"\n\t},]\n    ],\n}\nnode.send([msg]);\n},300);\nreturn",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 1720,
+        "y": 400,
+        "wires": [
+            [
+                "cfb098ed.1acb98"
+            ]
+        ]
+    },
+    {
+        "id": "e843d230.d5078",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Send AP Health",
+        "func": "if(msg.topic === \"apHealth\"){\nflow.set(\"apOnline\", msg.payload.onlineCount);\nflow.set(\"apFlagged\", msg.payload.flaggedCount);\nflow.set(\"apOffline\", msg.payload.offlineCount);\n}\n\nflow.set(\"zoneStatus\", [{\"onlineCount\": flow.get(\"apOnline\"), \"flaggedCount\": flow.get(\"apFlagged\"),\"offlineCount\": flow.get(\"apOffline\")}]);\n\n\nmsg.payload = flow.get(\"zoneStatus\");\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 1360,
+        "y": 580,
+        "wires": [
+            [
+                "5631cffc.d4f49"
+            ]
+        ]
+    },
+    {
+        "id": "7d4943d7.2dfabc",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Get AP Groups",
+        "func": "var url = flow.get(\"szAddress\") + \"/wsg/api/public/v9_1/rkszones/\" + msg.payload.id + \"/apgroups?serviceTicket=\";\nmsg.url = url.concat(flow.get(\"serviceTicket\"));\n\nmsg.headers = {};\n    msg.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"VsZSessionCookie\");\n\n//Read the AP groups of the Zone clicked in the Zone table\n//msg.payload.id contains the Zone ID to use in the request\n    flow.set(\"zoneID\", msg.payload.id);\n    flow.set(\"zoneName\", msg.payload.name);\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 1240,
+        "y": 400,
+        "wires": [
+            [
+                "98255093.0f956"
+            ]
+        ]
+    },
+    {
+        "id": "7bf20c86.834d84",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Send AP Zone Info",
+        "func": "//Check if returned AP Zone = 0 and if so send text reflecting this in the list box\nif (msg.payload.totalCount === 0) {\n    var noAPzones = [{\"name\": \"No AP Zones in the selected Domain\"}];\n    msg.topic = \"noAPzones\"\n    msg.payload = noAPzones;\n    node.send(msg);\n}\n//Else send the list of AP Zones for the selected Domain to the list box\nelse {\n    msg.payload = msg.payload.list;\n}\nnode.send([msg]);\n\n//Then set AP Zone list sort order by Name after 300ms to allow table to be populated first\nsetTimeout(function(){\n    msg.payload = {\n        \"command\":\"setSort\",\n    \"arguments\":[\n\t\t[{\n\t\t\t\"column\":\"name\",\"dir\":\"asc\"\n\t\t},]\n\t],\n}\nnode.send([msg]);\n\t},300);\nreturn",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 1450,
+        "y": 300,
+        "wires": [
+            [
+                "d4a10941.9fc808"
+            ]
+        ]
+    },
+    {
+        "id": "6955993.d032168",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Set Threshold",
+        "func": "if(msg.topic == \"Refresh&Clear\"){\nreturn;\n}\n\n//Set threshold slider to 0 if no AP group (Area) selected\nif(flow.get(\"apgroupName\") == null){\nmsg.payload = 0;\nreturn([msg,null]);\n}\n\n//Set the flow variable threshold to be the threshold slider value\nflow.set(\"threshold\",msg.payload);\n\n//Popup confirmation dialogue box that the threshold it to be set selected AP Group (Area)\nif(flow.get(\"threshold\") > 0){\nmsg.payload = '<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><link></head><script></script><body>Set a Threshold of <B> '+flow.get(\"threshold\")+' </B> for the <B>'+flow.get(\"apgroupName\")+'</B> Area.</body></html>';\nreturn [null,msg];\n}\n\nelse {\n//Popup confirmation dialogue box that the selected AP Group (Area) will be deleted from the table and array data\nmsg.payload = '<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><link></head><script></script><body><font color=red>**WARNING**</font color> a Threshold of <B>0</B> will Delete the <B>'+flow.get(\"apgroupName\")+'</B> Area from the Area Device Density table. </body></html>';\nreturn [null,msg];\n}",
+        "outputs": 2,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 160,
+        "y": 789,
+        "wires": [
+            [
+                "ff979ac7.25c718"
+            ],
+            [
+                "6fe5fc92.77ace4"
+            ]
+        ],
+        "outputLabels": [
+            "Send clear to Threshold input field",
+            "Send new Threshold"
+        ]
+    },
+    {
+        "id": "bf86d4ac.848ab8",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Get AP Zones",
+        "func": "//Read the AP Zones of the SZ Controller\nvar url = flow.get(\"szAddress\") + \"/wsg/api/public/v9_1/rkszones?&serviceTicket=\";\nmsg.url = url.concat(flow.get(\"serviceTicket\"));\n\nmsg.headers = {};\n    msg.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"VsZSessionCookie\");\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 920,
+        "y": 300,
+        "wires": [
+            [
+                "3e8733e0.ce58bc"
+            ]
+        ]
+    },
+    {
+        "id": "b0962134.c0658",
+        "type": "inject",
+        "z": "ef97fb1b.89a498",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "3",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 130,
+        "y": 300,
+        "wires": [
+            [
+                "add56a86.73bb38",
+                "7666d477.a8fe4c"
+            ]
+        ]
+    },
+    {
+        "id": "88ffbfa1.3e746",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Update Area Capacity Table",
+        "func": "//When AP Groups (Areas) are selected and added to or removed from the Area Capacity table they are recorded in the \n//flow array apgroupSelection / context variable array apgroupcontextSelection for tracking, along with the the Group ID\n\n//This node periodically updates the Area Capacity table based on the currently selected AP Groups (Areas) in flow array apgroupSelection\n\n//Load the current flow context array data into a local the context data array and check if length = 0\n//If it is 0 (no entries in the array) then exit as no update required\n//The var arrayLength is used subsequently if there is data in the array as to know how many loops of sending data are required\nvar apgroupSelection = flow.get(\"apgroupSelection\");\nvar arrayLength = apgroupSelection.length;\nif (arrayLength === 0){\nreturn;\n}\n\nelse \n{   \n    var msg1 = {}\n    msg1.url = flow.get(\"szAddress\").concat(\"/wsg/api/public/v9_1/query/client?serviceTicket=\");\n    msg1.url = msg1.url.concat(flow.get(\"serviceTicket\"));\n\n    msg1.headers = {};\n    msg1.headers[\"Content-Type\"]=\"application/json;charset=UTF-8\";\n    msg1.headers[\"Cookie\"]=\"JSESSIONID=\"+flow.get(\"vSZSessionCookie\");\n//Loop through routine and send a POST to update the Device Density table for every AP group (Area) in the array\n    for(loopCounter = 0; loopCounter < arrayLength; loopCounter++) {\n//Set an Area message identifier so if HTTP POST responses are received asynchronously they can be ordered correctly\n// in the Device Density Table\n    msg1.loopCounter = loopCounter; //This is used by the \"Send  Updated AP Group Info\" node to know which index in the array is currently being processed\n    msg1.id = apgroupSelection[loopCounter].id //lower-case AP Group (Area) used to notify the \"Send  Updated AP Group Info\" node which Area the data is for\n    msg1.area = apgroupSelection[loopCounter].apgroupName; //AP Group name in same case as confogured in the SZ\n    msg1.threshold = apgroupSelection[loopCounter].threshold;\n    msg1.alert = apgroupSelection[loopCounter].alert;\n\n//Get the client details for the selected AP group. The Limit is set to 1 as not interested in returning\n//all of the connected clients details, only the total clients per AP Group (Area)\n    msg1.payload = {\n        \"filters\":\n\t\t    [{\"type\": \"APGROUP\",\"value\": apgroupSelection[loopCounter].groupId}],\n\t    \"limit\": 1,\n\t    \"page\": 1\n        }\n    node.send(msg1);\n    node.done();\n    } \n}\nreturn;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 180,
+        "y": 1208,
+        "wires": [
+            [
+                "83a4778c.be98d8"
+            ]
+        ]
+    },
+    {
+        "id": "fc93e71f.0a8ab8",
+        "type": "http request",
+        "z": "ef97fb1b.89a498",
+        "name": "http post",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "d8d96dbf.ae322",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 1100,
+        "y": 580,
+        "wires": [
+            [
+                "e843d230.d5078"
+            ]
+        ]
+    },
+    {
+        "id": "98255093.0f956",
+        "type": "http request",
+        "z": "ef97fb1b.89a498",
+        "name": "http get",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "d8d96dbf.ae322",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 1460,
+        "y": 400,
+        "wires": [
+            [
+                "25b003a7.95b57c"
+            ]
+        ]
+    },
+    {
+        "id": "3e8733e0.ce58bc",
+        "type": "http request",
+        "z": "ef97fb1b.89a498",
+        "name": "http get",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "d8d96dbf.ae322",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 1200,
+        "y": 300,
+        "wires": [
+            [
+                "7bf20c86.834d84"
+            ]
+        ]
+    },
+    {
+        "id": "465f600f.23f86",
+        "type": "inject",
+        "z": "ef97fb1b.89a498",
+        "name": "Periodic Density Table Update - 15 seconds",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "15",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "2",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 230,
+        "y": 1100,
+        "wires": [
+            [
+                "88ffbfa1.3e746",
+                "f33a0a98.21c3e8",
+                "d7553854.898d08"
+            ]
+        ],
+        "outputLabels": [
+            "The link direct to \"Send Updated AP Group Info\" is for time updates only"
+        ]
+    },
+    {
+        "id": "4ab45b46.cd6f24",
+        "type": "ui_button",
+        "z": "ef97fb1b.89a498",
+        "name": "",
+        "group": "adf183d8.301fe",
+        "order": 4,
+        "width": 4,
+        "height": 1,
+        "passthru": false,
+        "label": "&nbspSave Configuration",
+        "tooltip": "This will Save the selected Area & Capacity Status table data to the server file \"/home/ruckus/Area_Density_Settings.json\"",
+        "color": "#0000FF",
+        "bgcolor": "#EAEAEA",
+        "icon": "fa-upload",
+        "payload": "<!DOCTYPE html><html lang=\"en\"><head></head><body><font color=red>**WARNING**</font color> Saving the currently selected Area & Capacity Status table configuration will over-write the existing saved configuration.</BR> </body></html>",
+        "payloadType": "str",
+        "topic": "",
+        "topicType": "str",
+        "x": 150,
+        "y": 960,
+        "wires": [
+            [
+                "5a25b0e3.ed6b8"
+            ]
+        ]
+    },
+    {
+        "id": "99fc74d2.ee7c78",
+        "type": "ui_button",
+        "z": "ef97fb1b.89a498",
+        "name": "",
+        "group": "adf183d8.301fe",
+        "order": 5,
+        "width": 4,
+        "height": 1,
+        "passthru": false,
+        "label": "&nbspRestore Configuration",
+        "tooltip": "This will Restore the last saved Area & Capacity Status table data from the server file \"/home/ruckus/Area_Density_Settings.json\"",
+        "color": "#9900CC",
+        "bgcolor": "#EAEAEA",
+        "icon": "fa-download",
+        "payload": "<!DOCTYPE html><html lang=\"en\"><head></head><body><font color=red>**WARNING**</font color> Restoring the saved configuration will over-write the current selected Area & Threshold Capacity status table configurations.</BR> </body></html>",
+        "payloadType": "str",
+        "topic": "",
+        "topicType": "str",
+        "x": 160,
+        "y": 1020,
+        "wires": [
+            [
+                "6977fb8c.33bb94"
+            ]
+        ]
+    },
+    {
+        "id": "29ff1d11.1e03a2",
+        "type": "ui_toast",
+        "z": "ef97fb1b.89a498",
+        "position": "bottom right",
+        "displayTime": "7",
+        "highlight": "Red",
+        "sendall": false,
+        "outputs": 0,
+        "ok": "OK",
+        "cancel": "",
+        "raw": false,
+        "topic": "",
+        "name": "Data Exported to File",
+        "x": 1720,
+        "y": 960,
+        "wires": []
+    },
+    {
+        "id": "7e4c93f5.ab8fdc",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Notification Text",
+        "func": "msg.payload = \"Density Area Configuration data saved to file\";\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 1360,
+        "y": 960,
+        "wires": [
+            [
+                "29ff1d11.1e03a2"
+            ]
+        ]
+    },
+    {
+        "id": "16e7e451.9ba4bc",
+        "type": "ui_toast",
+        "z": "ef97fb1b.89a498",
+        "position": "bottom right",
+        "displayTime": "7",
+        "highlight": "Red",
+        "sendall": false,
+        "outputs": 0,
+        "ok": "OK",
+        "cancel": "",
+        "raw": false,
+        "topic": "",
+        "name": "Data Imported from File",
+        "x": 1710,
+        "y": 1020,
+        "wires": []
+    },
+    {
+        "id": "6977fb8c.33bb94",
+        "type": "ui_toast",
+        "z": "ef97fb1b.89a498",
+        "position": "dialog",
+        "displayTime": "3",
+        "highlight": "",
+        "sendall": false,
+        "outputs": 1,
+        "ok": "OK",
+        "cancel": "Cancel",
+        "raw": true,
+        "topic": "",
+        "name": "Import Warning",
+        "x": 400,
+        "y": 1020,
+        "wires": [
+            [
+                "c10640bc.c74d6"
+            ]
+        ]
+    },
+    {
+        "id": "c10640bc.c74d6",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Cancel?",
+        "func": "//Do not import Confiuration if Cancel selected in confirmation notification.\nif(msg.payload == \"Cancel\") {\n    return;\n}\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 580,
+        "y": 1020,
+        "wires": [
+            [
+                "4416fe3.7ecbe"
+            ]
+        ]
+    },
+    {
+        "id": "5a25b0e3.ed6b8",
+        "type": "ui_toast",
+        "z": "ef97fb1b.89a498",
+        "position": "dialog",
+        "displayTime": "3",
+        "highlight": "",
+        "sendall": false,
+        "outputs": 1,
+        "ok": "OK",
+        "cancel": "Cancel",
+        "raw": true,
+        "topic": "",
+        "name": "Export Warning",
+        "x": 400,
+        "y": 960,
+        "wires": [
+            [
+                "7deedb63.9d83e4"
+            ]
+        ]
+    },
+    {
+        "id": "7deedb63.9d83e4",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Cancel ?",
+        "func": "//Do not import Confiuration if Cancel selected in confirmation notification.\nif(msg.payload == \"Cancel\") {\n    return;\n}\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 580,
+        "y": 960,
+        "wires": [
+            [
+                "78c5b0cd.60ce3"
+            ]
+        ]
+    },
+    {
+        "id": "1b640743.1b0799",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "Area Capacity Management",
+        "info": "",
+        "x": 1700,
+        "y": 680,
+        "wires": []
+    },
+    {
+        "id": "4fd61c5.c7c7ee4",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "Add/Update/Delete selected AP Group (Area) data",
+        "info": "",
+        "x": 790,
+        "y": 740,
+        "wires": []
+    },
+    {
+        "id": "d8caf8d.dd5fc08",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "Periodically Update AP Group (Area) data",
+        "info": "",
+        "x": 260,
+        "y": 1160,
+        "wires": []
+    },
+    {
+        "id": "cba292c8.4973e",
+        "type": "ui_toast",
+        "z": "ef97fb1b.89a498",
+        "position": "dialog",
+        "displayTime": "3",
+        "highlight": "",
+        "sendall": false,
+        "outputs": 1,
+        "ok": "OK",
+        "cancel": "",
+        "raw": true,
+        "topic": "",
+        "name": "Can't set a threshold of 0",
+        "x": 990,
+        "y": 860,
+        "wires": [
+            []
+        ],
+        "info": "If the selected AP Group (Area) doesn't already exist in the Area Device Density  table then you can't set a threshold of 0 as that speciifes to delete the Area for the table and array"
+    },
+    {
+        "id": "7a23fd6f.b70e44",
+        "type": "ui_table",
+        "z": "ef97fb1b.89a498",
+        "group": "fce942e1.af918",
+        "name": "Monitor - Area Capacity Status Table",
+        "order": 2,
+        "width": 18,
+        "height": 12,
+        "columns": [
+            {
+                "field": "id",
+                "title": "Hidden_Index",
+                "width": "",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "apgroupName",
+                "title": "Hotel Area",
+                "width": "50%",
+                "align": "left",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "apgroupColour",
+                "title": "<center>Capacity Status Indication</center>",
+                "width": "50%",
+                "align": "left",
+                "formatter": "color",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            }
+        ],
+        "outputs": 0,
+        "cts": false,
+        "x": 1670,
+        "y": 900,
+        "wires": []
+    },
+    {
+        "id": "9cfc02f6.20b34",
+        "type": "ui_text",
+        "z": "ef97fb1b.89a498",
+        "group": "fce942e1.af918",
+        "order": 1,
+        "width": 18,
+        "height": 2,
+        "name": "Monitor - Area Capacity Status Table Text",
+        "label": "<!DOCTYPE html> <html lang=\"en\"> <head> </head> <body> <p><font size = 5><font color=black><center><B>Area Capacity Monitoring Dashboard</B><font size = 3><BR><font color=grey>Auto-updated every 15 seconds.&emsp;Last updated on: {{msg.dateTime}}<BR><font color=#696969><B>GREY<font color=black></B> - Area Status Undetermined&emsp;|&emsp;<font color=Green><B>GREEN<font color=black></B> - Area is BELOW advised capacity&emsp;|&emsp;<font color=Red><B>RED<font color=black></B> - Area is AT or ABOVE advised capacity</center></font></p> </body> </html>",
+        "format": "",
+        "layout": "row-center",
+        "x": 1660,
+        "y": 860,
+        "wires": [],
+        "info": "This has not function apart from putting  text above the WLAN / SSID list"
+    },
+    {
+        "id": "26c0cfb1.3ba7a",
+        "type": "ui_template",
+        "z": "ef97fb1b.89a498",
+        "group": "e62e0868.78e328",
+        "name": "CONFERENCING Area Access Info Display Template",
+        "order": 1,
+        "width": 28,
+        "height": "13",
+        "format": "<!DOCTYPE html>\n<html lang=\"en\">\n\n<head>\n<meta name=\"description\" content=\"Area Capacity Monitoring\">\n<meta name=\"author\" content=\"Eddie Felmer\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n\n<style>\n/* Style the body */\nbody {\n    font-family: Arial;\n    margin: 0px;\n}\n/* Style the paragraph text */\np.normal {\n    padding: 10px;\n    text-align: center;\n    font-size: 40px;\n}\n\n/* Create a glow around the FA icon */\n.glow {\n    display: block;\n    margin: 70px;\n    width 70%;\n    color: {{msg.colour}};\n    text-shadow: 0 0 80px {{msg.colour}};\n    text-align: center;\n    color:{{msg.colour}};\n    font-size: 200px;\n}\n\n/* Style the Hands, Face, Space Image and Last Updated Time */\n.grid-container {\n    display: grid;\n    grid-template-columns: auto auto auto;\n    background-color: white;\n    padding: 0px;\n}\n.grid-image {\n    background-color: white;\n    padding: 0px;\n    text-align: center;\n    margin-left:90px;\n}\n.grid-text {\n    background-color: white;\n    padding: 0px;\n    font-size: 15px;\n    text-align: right;\n    margin-right: 20px;\n    margin-top: 82px;\n    color: grey;\n}\n\n/* Style the Footer */\n.footer\n{\n    display: grid;\n    grid-template-columns: auto auto auto;\n    background-color: #0094ce;\n    height:50px;\n\twidth: 100%;\n\tposition:fixed;\n    bottom:0;\n    left:0;\n}\n.footer-text {\n    background-color: #0094ce;\n    color: white;\n    font-size: 15px;\n    text-align: left;\n    margin-top: 15px;\n    margin-left: 20px;\n}\n.footer-image {\n    background-color: #0094ce;\n    margin-top: 9px;\n    position:fixed;\n    left: 50%; \n    margin-left: -100px; \n}\n</style>\n\n</head>\n<body>\n\n<!-- Display top area info text -->\n<div class=\"body\">\n    <p class=\"normal\"><b>{{msg.area}}</b> Area Access Guidance</p>\n    <p class=\"normal\"><font color = {{msg.colour}}><b>{{msg.message}}</b></font></p>\n</div>\n\n<!-- Display status icon -->\n<div>\n    <i class=\"fa fa-{{msg.fa_icon}} glow\"></i>\n</div>\n\n<!-- Display Hands, Face, Space image & Last Updated status -->\n<div class=\"grid-container\">\n    <div class=\"grid-image\"></div>\n    <div class=\"grid-image\"><img src=\"/HFS_NR_Blue.png\" alt=\"Hands, Face, Space Logo\" width = 500px></div>\n    <div class=\"grid-text\">Area Status Last Updated:<BR>{{msg.dateTime}}</div>  \n</div>\n\n<!-- Display page Footer -->\n<div class=\"footer\">\n    <div class=\"footer-text\">&copy; Ruckus Networks 2021</div>\n    <div class=\"footer-image\"><img src=\"/Ruckus_White.png\" alt=\"Ruckus Logo\" width = 200px></div>\n</div>\n\n</body>\n</html>",
+        "storeOutMessages": false,
+        "fwdInMessages": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "x": 1620,
+        "y": 1260,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a1b216cb.853e58",
+        "type": "ui_template",
+        "z": "ef97fb1b.89a498",
+        "group": "79e5669f.41d1d8",
+        "name": "RESTAURANT Area Access Info Display  Template",
+        "order": 1,
+        "width": 28,
+        "height": "13",
+        "format": "<!DOCTYPE html>\n<html lang=\"en\">\n\n<head>\n<meta name=\"description\" content=\"Area Capacity Monitoring\">\n<meta name=\"author\" content=\"Eddie Felmer\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n\n<style>\n/* Style the body */\nbody {\n    font-family: Arial;\n    margin: 0px;\n}\n/* Style the paragraph text */\np.normal {\n    padding: 10px;\n    text-align: center;\n    font-size: 40px;\n}\n\n/* Create a glow around the FA icon */\n.glow {\n    display: block;\n    margin: 70px;\n    width 70%;\n    color: {{msg.colour}};\n    text-shadow: 0 0 80px {{msg.colour}};\n    text-align: center;\n    color:{{msg.colour}};\n    font-size: 200px;\n}\n\n/* Style the Hands, Face, Space Image and Last Updated Time */\n.grid-container {\n    display: grid;\n    grid-template-columns: auto auto auto;\n    background-color: white;\n    padding: 0px;\n}\n.grid-image {\n    background-color: white;\n    padding: 0px;\n    text-align: center;\n    margin-left:90px;\n}\n.grid-text {\n    background-color: white;\n    padding: 0px;\n    font-size: 15px;\n    text-align: right;\n    margin-right: 20px;\n    margin-top: 82px;\n    color: grey;\n}\n\n/* Style the Footer */\n.footer\n{\n    display: grid;\n    grid-template-columns: auto auto auto;\n    background-color: #0094ce;\n    height:50px;\n\twidth: 100%;\n\tposition:fixed;\n    bottom:0;\n    left:0;\n}\n.footer-text {\n    background-color: #0094ce;\n    color: white;\n    font-size: 15px;\n    text-align: left;\n    margin-top: 15px;\n    margin-left: 20px;\n}\n.footer-image {\n    background-color: #0094ce;\n    margin-top: 9px;\n    position:fixed;\n    left: 50%; \n    margin-left: -100px; \n}\n</style>\n\n</head>\n<body>\n\n<!-- Display top area info text -->\n<div class=\"body\">\n    <p class=\"normal\"><b>{{msg.area}}</b> Area Access Guidance</p>\n    <p class=\"normal\"><font color = {{msg.colour}}><b>{{msg.message}}</b></font></p>\n</div>\n\n<!-- Display status icon -->\n<div>\n    <i class=\"fa fa-{{msg.fa_icon}} glow\"></i>\n</div>\n\n<!-- Display Hands, Face, Space image & Last Updated status -->\n<div class=\"grid-container\">\n    <div class=\"grid-image\"></div>\n    <div class=\"grid-image\"><img src=\"/HFS_NR_Blue.png\" alt=\"Hands, Face, Space Logo\" width = 500px></div>\n    <div class=\"grid-text\">Area Status Last Updated:<BR>{{msg.dateTime}}</div>  \n</div>\n\n<!-- Display page Footer -->\n<div class=\"footer\">\n    <div class=\"footer-text\">&copy; Ruckus Networks 2021</div>\n    <div class=\"footer-image\"><img src=\"/Ruckus_White.png\" alt=\"Ruckus Logo\" width = 200px></div>\n</div>\n\n</body>\n</html>",
+        "storeOutMessages": false,
+        "fwdInMessages": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "x": 1630,
+        "y": 1300,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "7666d477.a8fe4c",
+        "type": "ui_button",
+        "z": "ef97fb1b.89a498",
+        "name": "Refresh only AP Zones list",
+        "group": "adf183d8.301fe",
+        "order": 2,
+        "width": 8,
+        "height": 1,
+        "passthru": true,
+        "label": " &nbspRefresh AP Zones",
+        "tooltip": "Refresh only the AP Zone list if the list is empty, or needs updating.",
+        "color": "#00B251",
+        "bgcolor": "#EAEAEA",
+        "icon": "fa-refresh",
+        "payload": "",
+        "payloadType": "date",
+        "topic": "",
+        "topicType": "str",
+        "x": 420,
+        "y": 260,
+        "wires": [
+            [
+                "bf86d4ac.848ab8"
+            ]
+        ]
+    },
+    {
+        "id": "42b8d6d1.fc68e8",
+        "type": "ui_template",
+        "z": "ef97fb1b.89a498",
+        "group": "feabd600.f71b28",
+        "name": "Logo in NR Title Bar",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "format": "<style>\n/* Set Logo position and size */\n/* Path to logo images is configured in Node-Red startup file settings.js */\n.md-toolbar-tools{\n    background-image: url(\"/Your_Logo_Here_1.png\");\n    background-repeat: no-repeat;\n    background-size: 283px 48px;\n    background-position: center;\n}\n</style>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": false,
+        "templateScope": "global",
+        "x": 140,
+        "y": 240,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "23764aa6.19a986",
+        "type": "ui_toast",
+        "z": "ef97fb1b.89a498",
+        "position": "dialog",
+        "displayTime": "3",
+        "highlight": "",
+        "sendall": false,
+        "outputs": 1,
+        "ok": "OK",
+        "cancel": "Cancel",
+        "raw": true,
+        "topic": "",
+        "name": "Confirm Refresh & Clear",
+        "x": 690,
+        "y": 340,
+        "wires": [
+            [
+                "add56a86.73bb38",
+                "bf86d4ac.848ab8"
+            ]
+        ]
+    },
+    {
+        "id": "d7553854.898d08",
+        "type": "ui_switch",
+        "z": "ef97fb1b.89a498",
+        "name": "Enable/Disable Auto-Sort",
+        "label": "Auto-Sort Area Capacity Status tables by Status Colour",
+        "tooltip": "When Enabled the Area Capacity Status tables will be sorted in order of Colour Status every periodic update interval.",
+        "group": "adf183d8.301fe",
+        "order": 21,
+        "width": 9,
+        "height": 1,
+        "passthru": true,
+        "decouple": "false",
+        "topic": "topic",
+        "topicType": "msg",
+        "style": "",
+        "onvalue": "true",
+        "onvalueType": "bool",
+        "onicon": "",
+        "oncolor": "",
+        "offvalue": "false",
+        "offvalueType": "bool",
+        "officon": "",
+        "offcolor": "",
+        "animate": false,
+        "x": 579,
+        "y": 1100,
+        "wires": [
+            [
+                "9797e44a.4f63a8"
+            ]
+        ]
+    },
+    {
+        "id": "9797e44a.4f63a8",
+        "type": "function",
+        "z": "ef97fb1b.89a498",
+        "name": "Enable/Disable Auto-Sort",
+        "func": "//Check if switch state is True (Enabled or false (Disabled). If Disabled return with no action.\nif (msg.payload === true) {\n//Set the Area Capacity tables sort order in Descending on Capcity Status Colour\nmsg.payload = {\n        \"command\":\"setSort\",\n    \"arguments\":[\n\t\t[{\n\t\t\t\"column\":\"apgroupColour\",\"dir\":\"desc\"\n\t\t},]\n\t],\n}\n//Wait for 1.5 seconds before sorting tabel so Area updates have completed\nsetTimeout(function(){\nnode.send(msg);\nnode.done();\n    },1500);  \n}\nreturn;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 833,
+        "y": 1100,
+        "wires": [
+            [
+                "974d98d8.8d0618",
+                "7a23fd6f.b70e44"
+            ]
+        ]
+    },
+    {
+        "id": "5df7f7a5.842328",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "** Read-Me for Instructions on adding new per Area Access Information Displays **",
+        "info": "This is an example of how to add a new Area Access Information Display Template for the Area \"Gym\".\n\nIf you simply want to change the name of an existing Area Name then change it in the nodes \"Send Selected AP Group Info\" & \"Send Updated AP Group Info\" under the section \"//PER AREA ACCESS INFORMATION DISPLAYS\". The new Area Name MUST MATCH the name of the AP Group (Area) in your SZ. \n\n1. Select an existing \"<Area Name> Area Access Info Display Template\" node, Copy (Ctrl+C) & Paste (Ctrl+V) it into the workflow.\n\n2. Edit the new Template node & update its \"Name\" field to reflect the SZ AP Group (Area) Name you are adding i.e. \"GYM Area Access Info Display Template\"\n\n2a. Under the Group field drop-down select \"Add new ui_group\" then click the pencil to edit its properties:\n- Set the name to reflect the new Area you are adding i.e. \"GYM Area Display\"\n- Set the \"Width\" field to be 28\n- Uncheck \"Display Group name\"\n- In the \"Tab\" field drop-down select \"Add a new ui_tab\", edit that & set the name also to be \"GYM Area Display\"\n- In the \"Icon\" field you can enter the name of an Icon to be shown in the Dashboard menu that represents the Area type from one of the 3 sources indicated in the yellow information text box (Font Awesome, Material Design, Google Material Icons)\n\n2b. Click Add, then Add again, then in this page check that the Size is 28 x 13 and click Done\n\n3. In both the function nodes \"Send Selected AP Group Info\" & \"Send Updated AP Group Info\" perform the following: \n\n3a. Add an additional \"Outputs\" for the new Area & under the Appearance option (icon top right of the page) add a descriptive Outputs label in the format \"Send data to GYM Area Display\"\n\n3b. In both function nodes under the section \"//PER AREA ACCESS INFORMATION DISPLAYS\" add the code snippet below, making sure you change the example Area Name \"GYM\" to be that of the new Area Name you are adding (it must match the name of the AP Group (Area) in your SZ):\n\nif (flow.get(\"apgroupnameIndex\") === \"GYM\".toLowerCase()) {\n\tnode.send([null, null, null, msg2]); \n\tnode.done();\t\n}\n\n3c. You now need CAREFULLY update ALL the send.node and return statements throughout these 2 nodes to reflect the additional Output. Note: the node \"Send Updated AP Group Info\" will always have 1 more Output than the node \"Send Selected AP Group Info\".\n\n\"Send Updated AP Group Info\" node example:\nIn the base configuration there are 5 Outputs and you can see commands like \"node.send([null, msg1, null, null, null]);\" which specify which Output to send a processed data message (msg). In this example the msg is sent out of the 2nd Output. When you add an Output you need to add an extra \", null\" to the end of every send.node and return statement to indicate the message should not be sent out of that new Output. \n\nThus the above example statement becomes: node.send([null, msg1, null, null, null, null]); \n\nThe exception to this is for the code snippet you added. You need to send the msg (msg2) out of the new Output, so it's updated statement will look like this: node.send([null, null, null, null, null, msg2]);\n\nRepeat steps 3a to 3c in the \"Send Updated AP Group Info\" node, noting that in base configuration it has 6 Outputs rather than 5\n\n4. Now make the relevant node conenctions to the Input of your new Area Access Info Display Template node i.e. in this example you connect them to the Input of the node \"GYM Area Access Info Display Template\". If in doubt, check the connections of one of the existing Area Access Info Display Template nodes\n\n4a. Connect the new Outputs from the nodes \"Send Selected AP Group Info\" & \"Send Updated AP Group Info\" to the Input of your new Area Access Info Display Template node \n\n4b. Connect Output 3 of the node \"Clear all data/set defaults\" to the input of your new Area Access Info Display Template node \n\n5. You do not need to make any changes to the HTML of your \"<Area Name> Area Access Info Display Template\" as the Area Name is picked up from the the function nodes when data is received. You may however want to change the element sizes to fit a particular Areas display resolution in the CSS - I'm no CSS/HTML expert so sorry if the fromatting is a bit sub-standard ;-)\n\n6. Deploy and test...",
+        "x": 1090,
+        "y": 1300,
+        "wires": []
+    },
+    {
+        "id": "7ecaa891.4bdbf8",
+        "type": "ui_template",
+        "z": "ef97fb1b.89a498",
+        "group": "a9dee31a.c317",
+        "name": "BAR Area Access Info Display Template",
+        "order": 1,
+        "width": 28,
+        "height": "13",
+        "format": "<!DOCTYPE html>\n<html lang=\"en\">\n\n<head>\n<meta name=\"description\" content=\"Area Capacity Monitoring\">\n<meta name=\"author\" content=\"Eddie Felmer\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n\n<style>\n/* Style the body */\nbody {\n    font-family: Arial;\n    margin: 0px;\n}\n/* Style the paragraph text */\np.normal {\n    padding: 10px;\n    text-align: center;\n    font-size: 40px;\n}\n\n/* Create a glow around the FA icon */\n.glow {\n    display: block;\n    margin: 70px;\n    width 70%;\n    color: {{msg.colour}};\n    text-shadow: 0 0 80px {{msg.colour}};\n    text-align: center;\n    color:{{msg.colour}};\n    font-size: 200px;\n}\n\n/* Style the Hands, Face, Space Image and Last Updated Time */\n.grid-container {\n    display: grid;\n    grid-template-columns: auto auto auto;\n    background-color: white;\n    padding: 0px;\n}\n.grid-image {\n    background-color: white;\n    padding: 0px;\n    text-align: center;\n    margin-left:90px;\n}\n.grid-text {\n    background-color: white;\n    padding: 0px;\n    font-size: 15px;\n    text-align: right;\n    margin-right: 20px;\n    margin-top: 82px;\n    color: grey;\n}\n\n/* Style the Footer */\n.footer\n{\n    display: grid;\n    grid-template-columns: auto auto auto;\n    background-color: #0094ce;\n    height:50px;\n\twidth: 100%;\n\tposition:fixed;\n    bottom:0;\n    left:0;\n}\n.footer-text {\n    background-color: #0094ce;\n    color: white;\n    font-size: 15px;\n    text-align: left;\n    margin-top: 15px;\n    margin-left: 20px;\n}\n.footer-image {\n    background-color: #0094ce;\n    margin-top: 9px;\n    position:fixed;\n    left: 50%; \n    margin-left: -100px; \n}\n</style>\n\n</head>\n<body>\n\n<!-- Display top area info text -->\n<div class=\"body\">\n    <p class=\"normal\"><b>{{msg.area}}</b> Area Access Guidance</p>\n    <p class=\"normal\"><font color = {{msg.colour}}><b>{{msg.message}}</b></font></p>\n</div>\n\n<!-- Display status icon -->\n<div>\n    <i class=\"fa fa-{{msg.fa_icon}} glow\"></i>\n</div>\n\n<!-- Display Hands, Face, Space image & Last Updated status -->\n<div class=\"grid-container\">\n    <div class=\"grid-image\"></div>\n    <div class=\"grid-image\"><img src=\"/HFS_NR_Blue.png\" alt=\"Hands, Face, Space Logo\" width = 500px></div>\n    <div class=\"grid-text\">Area Status Last Updated:<BR>{{msg.dateTime}}</div>  \n</div>\n\n<!-- Display page Footer -->\n<div class=\"footer\">\n    <div class=\"footer-text\">&copy; Ruckus Networks 2021</div>\n    <div class=\"footer-image\"><img src=\"/Ruckus_White.png\" alt=\"Ruckus Logo\" width = 200px></div>\n</div>\n\n</body>\n</html>",
+        "storeOutMessages": false,
+        "fwdInMessages": false,
+        "resendOnRefresh": false,
+        "templateScope": "local",
+        "x": 1660,
+        "y": 1340,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "d24b5f0e.659ec",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "Per Area Access Information Displays",
+        "info": "",
+        "x": 1670,
+        "y": 1220,
+        "wires": []
+    },
+    {
+        "id": "4664b705.1a80e8",
+        "type": "comment",
+        "z": "ef97fb1b.89a498",
+        "name": "Area Capacity Montoring table",
+        "info": "",
+        "x": 1700,
+        "y": 820,
+        "wires": []
+    },
+    {
+        "id": "b9adce38.9a46c",
+        "type": "http request",
+        "z": "ef97fb1b.89a498",
+        "name": "SMS",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": true,
+        "url": "",
+        "tls": "",
+        "proxy": "",
+        "authType": "",
+        "x": 1770,
+        "y": 1147,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "d8d96dbf.ae322",
+        "type": "tls-config",
+        "name": "",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "",
+        "keyname": "",
+        "caname": "",
+        "verifyservercert": false
+    },
+    {
+        "id": "1b375f38.3b6b71",
+        "type": "tls-config",
+        "name": "",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "",
+        "keyname": "",
+        "caname": "",
+        "verifyservercert": false
+    },
+    {
+        "id": "adf183d8.301fe",
+        "type": "ui_group",
+        "name": "Area Capacity Management",
+        "tab": "4d0fb10b.dc338",
+        "order": 1,
+        "disp": false,
+        "width": 25,
+        "collapse": false
+    },
+    {
+        "id": "fce942e1.af918",
+        "type": "ui_group",
+        "name": "Area Capacity Monitoring",
+        "tab": "73dfff1b.02cbb",
+        "order": 1,
+        "disp": false,
+        "width": "18",
+        "collapse": false
+    },
+    {
+        "id": "e62e0868.78e328",
+        "type": "ui_group",
+        "name": "CONFERENCING Area Display",
+        "tab": "e5683382.fc5d4",
+        "order": 1,
+        "disp": false,
+        "width": "28",
+        "collapse": false
+    },
+    {
+        "id": "79e5669f.41d1d8",
+        "type": "ui_group",
+        "name": "RESTAURANT Area Display",
+        "tab": "fe6624b2.a175e8",
+        "order": 1,
+        "disp": false,
+        "width": "28",
+        "collapse": false
+    },
+    {
+        "id": "feabd600.f71b28",
+        "type": "ui_group",
+        "name": "Logo",
+        "tab": "fb98fdb9.b193a",
+        "order": 1,
+        "disp": false,
+        "width": "24",
+        "collapse": false
+    },
+    {
+        "id": "a9dee31a.c317",
+        "type": "ui_group",
+        "name": "BAR Area Display",
+        "tab": "b10e1e0b.b6d71",
+        "order": 1,
+        "disp": false,
+        "width": "28",
+        "collapse": false
+    },
+    {
+        "id": "4d0fb10b.dc338",
+        "type": "ui_tab",
+        "name": "Area Capacity Management",
+        "icon": "mi-settings",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "73dfff1b.02cbb",
+        "type": "ui_tab",
+        "name": "Area Capacity Monitoring",
+        "icon": "mi-traffic",
+        "order": 2,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "e5683382.fc5d4",
+        "type": "ui_tab",
+        "name": "CONFERENCING Area Display",
+        "icon": "mi-groups",
+        "order": 4,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "fe6624b2.a175e8",
+        "type": "ui_tab",
+        "name": "RESTAURANT Area Display",
+        "icon": "mi-restaurant",
+        "order": 5,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "fb98fdb9.b193a",
+        "type": "ui_tab",
+        "name": "Header Logo",
+        "icon": "dashboard",
+        "order": 3,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "b10e1e0b.b6d71",
+        "type": "ui_tab",
+        "name": "BAR Area Display",
+        "icon": "fa-beer",
+        "order": 6,
+        "disabled": false,
+        "hidden": false
+    }
+]
